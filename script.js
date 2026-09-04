@@ -295,6 +295,77 @@ async function processVideo() {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+
+// ---------------- PERSONALIZED LEARNING ENGINE ----------------
+const learningState = JSON.parse(localStorage.getItem("bhashaLearningState") || '{"xp":0,"completed":0,"streak":0,"lastDate":"","subject":"","className":""}');
+
+function saveLearningState(){ localStorage.setItem("bhashaLearningState", JSON.stringify(learningState)); }
+
+function awardXP(points, message){
+  const today = new Date().toDateString();
+  if (learningState.lastDate !== today) {
+    const yesterday = new Date(Date.now()-86400000).toDateString();
+    learningState.streak = learningState.lastDate === yesterday ? learningState.streak + 1 : 1;
+    learningState.lastDate = today;
+  }
+  learningState.xp += points;
+  saveLearningState();
+  updateLearningDashboard();
+  if(message) showToast(message + " +" + points + " XP");
+}
+
+function updateLearningDashboard(){
+  const pct = Math.min(100, Math.round((learningState.completed / 12) * 100));
+  const xp = learningState.xp || 0;
+  const el = id => document.getElementById(id);
+  if(el("masteryPercent")) el("masteryPercent").textContent = pct + "%";
+  if(el("masteryBar")) el("masteryBar").style.width = pct + "%";
+  if(el("masteryText")) el("masteryText").textContent = learningState.completed ? learningState.completed + " learning milestones completed." : "Start a lesson to build your mastery.";
+  if(el("learningStreak")) el("learningStreak").textContent = (learningState.streak || 0) + " day streak";
+  if(el("xpPoints")) el("xpPoints").textContent = xp + " XP";
+  if(el("continueTitle")) el("continueTitle").textContent = learningState.subject ? "Continue " + learningState.subject : "Choose a subject to begin";
+  if(el("continueText")) el("continueText").textContent = learningState.subject ? "Class " + learningState.className + " • Your next adaptive lesson is ready." : "Bhasha AI will create a personalized learning path.";
+}
+
+function resetLearningProgress(){
+  if(!confirm("Reset your local learning progress?")) return;
+  Object.assign(learningState,{xp:0,completed:0,streak:0,lastDate:"",subject:"",className:""});
+  saveLearningState(); updateLearningDashboard(); showToast("Learning progress reset.");
+}
+
+function generateLearningPath(cls, subject, topics){
+  const path = document.getElementById("learningPath");
+  if(!path) return;
+  const steps = [
+    ["📖","Learn","Understand the core concept"],
+    ["💡","Understand","Get a simple AI explanation"],
+    ["🗣️","Explain","Explain it in your own language"],
+    ["✍️","Practice","Solve adaptive questions"],
+    ["🏆","Master","Review mistakes and level up"]
+  ];
+  path.innerHTML = steps.map((s,i)=>`<article class="path-card ${i===0?"active":""}" data-step="${i}">
+    <div class="path-icon">${s[0]}</div><span>STEP ${i+1}</span><h3>${s[1]}</h3><p>${s[2]}</p>
+    <button class="${i===0?"primary":"secondary"}" onclick="startLearningStep(${i}, '${String(subject).replace(/'/g,"\\'")}')">${i===0?"Start":"Open"}</button>
+  </article>`).join("");
+}
+
+function startLearningStep(step, subject){
+  const messages=[
+    "Start by reading the topic. Focus on meaning, not memorization.",
+    "Open AI Coach and ask for a simple explanation with examples.",
+    "Use your mother tongue to explain the concept aloud in your own words.",
+    "Go to Infinite Quiz and test your understanding with fresh questions.",
+    "Review incorrect answers and repeat weak concepts until confident."
+  ];
+  const targets=["#curriculum","#tutor","#live","#quiz","#quiz"];
+  awardXP(10, "Learning step completed!");
+  learningState.completed++;
+  saveLearningState(); updateLearningDashboard();
+  document.querySelector(targets[step])?.scrollIntoView({behavior:"smooth"});
+  showToast(messages[step]);
+}
+
+
 // ---------------- ASK • UNDERSTAND • LEARN AI WORKFLOW ----------------
 let aiMode = "ask";
 
@@ -593,6 +664,7 @@ function checkAnswer(button) {
   if (isCorrect) {
     score++;
     streak++;
+    awardXP(15, "Correct answer!");
     showToast("Correct! 🔥 Streak " + streak);
   } else {
     streak = 0;
@@ -679,6 +751,12 @@ function renderCurriculum() {
     (subject.value.includes("Regional") ? topicMap["Hindi / Regional Language"] :
       ["Core concepts","Reading and understanding","Practice","Application","Assessment"]);
 
+  learningState.subject = subject.value;
+  learningState.className = cls.value;
+  saveLearningState();
+  updateLearningDashboard();
+  generateLearningPath(cls.value, subject.value, topics);
+
   result.innerHTML = `
     <div class="curriculum-head">
       <span class="curriculum-badge">Class ${cls.value}</span>
@@ -692,4 +770,4 @@ function renderCurriculum() {
   `;
 }
 
-document.addEventListener("DOMContentLoaded", initializeCurriculum);
+document.addEventListener("DOMContentLoaded", () => { initializeCurriculum(); updateLearningDashboard(); });
