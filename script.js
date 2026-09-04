@@ -2,7 +2,7 @@ let recognition = null;
 let listening = false;
 let lastTranslation = "";
 let baseText = "";
-let restartTimer = null;
+let finalResults = [];
 
 const langMap = { en:"en-US", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ta:"ta-IN", te:"te-IN", mr:"mr-IN" };
 
@@ -19,12 +19,38 @@ function toggleListening() {
 }
 
 /*
-  IMPORTANT FIX:
-  Chrome's SpeechRecognition returns cumulative results and may resend
-  earlier words. We NEVER append result chunks anymore.
-  Instead, on every event we rebuild the transcript from the current
-  recognition session's FINAL results exactly once.
+  Clean recognition glitches such as:
+  "hello hello what what is your name"
+  -> "hello what is your name"
+
+  It collapses only immediately repeated words/phrases. This is a safety
+  layer because mobile Web Speech API can itself return duplicated tokens.
 */
+function cleanTranscript(text) {
+  let words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+
+  // Repeat until no adjacent duplicate word or phrase remains.
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    // Adjacent duplicate phrases, longest first (up to 5 words).
+    for (let size = Math.min(5, Math.floor(words.length / 2)); size >= 1; size--) {
+      for (let i = 0; i + size * 2 <= words.length; i++) {
+        const a = words.slice(i, i + size).join(" ").toLowerCase();
+        const b = words.slice(i + size, i + size * 2).join(" ").toLowerCase();
+        if (a === b) {
+          words.splice(i + size, size);
+          changed = true;
+          break;
+        }
+      }
+      if (changed) break;
+    }
+  }
+  return words.join(" ");
+}
+
 function startVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
@@ -33,43 +59,36 @@ function startVoice() {
   }
 
   const input = document.getElementById("inputText");
-  baseText = input.value.trim();
+
+  // Start a completely fresh transcript. User can edit manually after stopping.
+  baseText = "";
+  finalResults = [];
+  input.value = "";
 
   recognition = new SR();
   recognition.lang = langMap[document.getElementById("sourceLanguage").value] || "en-US";
-  recognition.continuous = false;
-  recognition.interimResults = false; // Do not display unstable/interim words.
+
+  // One continuous recognition session: no manual restart loop.
+  recognition.continuous = true;
+  recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 
   recognition.onresult = (event) => {
-    const finalParts = [];
-
-    // Rebuild from indexed results instead of appending chunks.
-    for (let i = 0; i < event.results.length; i++) {
+    // Store each FINAL result by its native result index.
+    // Never append the same event text twice.
+    for (let i = event.resultIndex; i < event.results.length; i++) {
       if (event.results[i].isFinal) {
-        finalParts.push(event.results[i][0].transcript.trim());
+        finalResults[i] = event.results[i][0].transcript.trim();
       }
     }
 
-    const sessionText = finalParts.join(" ").replace(/\s+/g, " ").trim();
-    input.value = [baseText, sessionText].filter(Boolean).join(" ").trim();
-    document.getElementById("micStatus").textContent = "● HEARD: " + sessionText;
-  };
-
-  recognition.onend = () => {
-    if (!listening) return;
-
-    // Save the completed session ONCE before a fresh session starts.
-    baseText = input.value.trim();
-    restartTimer = setTimeout(() => {
-      if (listening) {
-        try { recognition.start(); } catch (e) {}
-      }
-    }, 300);
+    const sessionText = cleanTranscript(finalResults.filter(Boolean).join(" "));
+    input.value = cleanTranscript([baseText, sessionText].filter(Boolean).join(" "));
+    document.getElementById("micStatus").textContent = "● LISTENING LIVE";
   };
 
   recognition.onerror = (event) => {
-    if (event.error === "no-speech") return;
+    if (event.error === "no-speech" || event.error === "aborted") return;
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
       stopListening();
       showToast("Please allow microphone permission.");
@@ -78,13 +97,26 @@ function startVoice() {
     console.warn("Speech recognition error:", event.error);
   };
 
+  recognition.onend = () => {
+    // Do NOT auto-restart. Auto-restarts were creating duplicate sessions.
+    if (listening) {
+      listening = false;
+      document.body.classList.remove("listening");
+      document.getElementById("startBtn").textContent = "🎤 Start Listening";
+      document.getElementById("micStatus").textContent = "● READY";
+      document.getElementById("inputText").value = cleanTranscript(
+        [baseText, finalResults.filter(Boolean).join(" ")].filter(Boolean).join(" ")
+      );
+    }
+  };
+
   listening = true;
   try {
     recognition.start();
     document.body.classList.add("listening");
     document.getElementById("startBtn").textContent = "⏹ Stop Listening";
     document.getElementById("micStatus").textContent = "● LISTENING LIVE";
-    showToast("Listening started. Speak clearly.");
+    showToast("Listening started. Speak naturally.");
   } catch (e) {
     listening = false;
     showToast("Microphone could not be started.");
@@ -93,13 +125,15 @@ function startVoice() {
 
 function stopListening() {
   listening = false;
-  clearTimeout(restartTimer);
   if (recognition) {
     try { recognition.stop(); } catch (e) {}
   }
   document.body.classList.remove("listening");
   document.getElementById("startBtn").textContent = "🎤 Start Listening";
   document.getElementById("micStatus").textContent = "● READY";
+  document.getElementById("inputText").value = cleanTranscript(
+    [baseText, finalResults.filter(Boolean).join(" ")].filter(Boolean).join(" ")
+  );
 }
 
 async function translateLesson() {
