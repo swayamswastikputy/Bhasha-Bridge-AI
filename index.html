@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BhashaBridge AI | Learn Without Language Barriers</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">B</span><span>BhashaBridge <b>AI</b></span></div>
+  <nav>
+    <a href="#translator">Translator</a>
+    <a href="#tutor">AI Tutor</a>
+    <a href="#quiz">Quiz</a>
+    <a href="#impact">Impact</a>
+  </nav>
+  <button class="nav-btn" onclick="document.getElementById('translator').scrollIntoView()">Try Demo →</button>
+</header>
+
+<section class="hero">
+  <div class="hero-copy">
+    <div class="pill">✦ AI for Inclusive Education</div>
+    <h1>Every Child Deserves to Learn in the Language They <span>Understand.</span></h1>
+    <p>BhashaBridge AI breaks language barriers in primary education using translation, voice interaction, AI tutoring and personalized quizzes.</p>
+    <div class="hero-actions">
+      <button class="primary" onclick="document.getElementById('translator').scrollIntoView()">🚀 Launch Prototype</button>
+      <button class="secondary" onclick="speak('Welcome to BhashaBridge AI. Learning in every child’s language.')">🔊 Hear Our Vision</button>
+    </div>
+    <div class="stats">
+      <div><b>8+</b><span>Languages Ready</span></div>
+      <div><b>Voice</b><span>First Learning</span></div>
+      <div><b>AI</b><span>Personalized</span></div>
+    </div>
+  </div>
+  <div class="hero-card">
+    <div class="card-top"><span>● Live Learning Session</span><span class="online">ONLINE</span></div>
+    <div class="teacher">👩‍🏫 <div><b>Teacher's Lesson</b><p>Plants need sunlight, water and air to grow.</p></div></div>
+    <div class="flow">↓ AI TRANSLATION ↓</div>
+    <div class="student">👦 <div><b>Student's Mother Tongue</b><p>🌱 Easy explanation delivered in the selected language.</p><button onclick="speak('Plants need sunlight, water and air to grow.')">▶ Listen</button></div></div>
+    <div class="mini-chips"><span>🎤 Speech</span><span>🌐 Translate</span><span>🧠 Quiz</span></div>
+  </div>
+</section>
+
+<section class="section" id="translator">
+  <div class="section-title"><div><div class="eyebrow">CORE PROTOTYPE</div><h2>Smart Learning Translator</h2><p>Enter a lesson, select a language and experience the learning flow.</p></div><div class="live-dot">● LIVE DEMO</div></div>
+  <div class="translator-grid">
+    <div class="panel">
+      <label>1. Educational Content</label>
+      <textarea id="inputText" placeholder="Type or speak a lesson...">Plants need sunlight, water and air to grow.</textarea>
+      <div class="row">
+        <select id="sourceLanguage">
+          <option value="en">English</option><option value="hi">Hindi</option><option value="or">Odia</option>
+        </select>
+        <button class="voice" onclick="startVoice()">🎤 Speak</button>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="panel output-panel">
+      <label>2. Select Student Language</label>
+      <select id="targetLanguage">
+        <option value="hi">Hindi</option><option value="or">Odia</option><option value="bn">Bengali</option><option value="en">English</option>
+        <option value="sa">Santali (Prototype)</option><option value="na">Nagpuri (Prototype)</option>
+      </select>
+      <button class="primary full" onclick="translateLesson()">✨ Translate with AI</button>
+      <div id="translationResult" class="result">Your translated lesson will appear here.</div>
+      <div class="result-actions">
+        <button onclick="speakResult()">🔊 Listen</button>
+        <button onclick="copyResult()">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+  <p class="demo-note">Demo mode includes built-in educational translations. A production version can connect IndicTrans2/Gemini or another approved translation API.</p>
+</section>
+
+<section class="section alt" id="tutor">
+  <div class="section-title center"><div><div class="eyebrow">AI LEARNING ASSISTANT</div><h2>Ask. Understand. Learn.</h2><p>A child-friendly tutor designed to explain concepts simply.</p></div></div>
+  <div class="tutor">
+    <div class="chat" id="chat">
+      <div class="message bot">👋 Hello! I'm Bhasha, your AI learning friend. Ask me anything about today's lesson.</div>
+      <div class="quick-questions">
+        <button onclick="quickAsk('Why do plants need sunlight?')">Why do plants need sunlight?</button>
+        <button onclick="quickAsk('What do plants need to grow?')">What do plants need?</button>
+        <button onclick="quickAsk('Explain photosynthesis simply')">Explain simply</button>
+      </div>
+    </div>
+    <div class="askbar"><input id="question" placeholder="Ask your question in simple words..."><button onclick="askAI()">Ask AI ✨</button></div>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="section-title"><div><div class="eyebrow">PERSONALIZED ASSESSMENT</div><h2>Learn → Practice → Improve</h2><p>Generate a quick quiz from the current lesson.</p></div><button class="primary" onclick="generateQuiz()">🧠 Generate Quiz</button></div>
+  <div id="quizContainer" class="quiz-container">
+    <div class="empty">Click <b>Generate Quiz</b> to create an interactive assessment.</div>
+  </div>
+  <div id="scoreBox" class="score-box"></div>
+</section>
+
+<section class="features">
+  <div class="feature"><div class="icon">🎤</div><h3>Voice First</h3><p>Children can speak instead of typing.</p></div>
+  <div class="feature"><div class="icon">🌐</div><h3>Multilingual</h3><p>Learning content in familiar languages.</p></div>
+  <div class="feature"><div class="icon">🔊</div><h3>Audio Learning</h3><p>Listen to lessons and explanations.</p></div>
+  <div class="feature"><div class="icon">📊</div><h3>Adaptive Quiz</h3><p>Track understanding through assessment.</p></div>
+</section>
+
+<section class="impact" id="impact">
+  <div><div class="eyebrow">OUR IMPACT</div><h2>From Language Barrier to Learning Bridge.</h2><p>Designed for primary education, rural classrooms and multilingual communities.</p></div>
+  <div class="impact-list">
+    <div>✓ Better comprehension</div><div>✓ Increased participation</div><div>✓ Teacher empowerment</div><div>✓ Indigenous language inclusion</div>
+  </div>
+</section>
+
+<footer>
+  <div class="brand"><span class="logo">B</span><span>BhashaBridge <b>AI</b></span></div>
+  <p>Hackathon Prototype • AI-Powered Vernacular Pedagogy</p>
+  <p class="quote">“Language should never be a barrier to education.”</p>
+</footer>
+
+<div id="toast"></div>
+<script src="script.js"></script>
+</body>
+</html>
