@@ -1,0 +1,20 @@
+/* Conversational AI interface */
+.ai-chat-section{background:linear-gradient(180deg,#fafaff,#f4f1ff)}
+.ai-app{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:260px 1fr;border:1px solid #ddd8f4;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 50px rgba(67,45,130,.12)}
+.ai-sidebar{padding:28px;background:linear-gradient(160deg,#25174e,#5d3bc4);color:#fff;display:flex;flex-direction:column;gap:14px}
+.ai-avatar{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;font-size:30px;background:rgba(255,255,255,.15)}
+.ai-sidebar h3{margin:0;font-size:25px}.ai-sidebar p{margin:0;opacity:.82;line-height:1.55}.ai-sidebar .secondary{background:#fff;color:#4d2ab7;border:0}
+.ai-status{margin-top:auto;font-size:13px;display:flex;gap:8px;align-items:center}.ai-status span{width:9px;height:9px;border-radius:50%;background:#ffc857}
+.ai-conversation{min-height:580px;display:flex;flex-direction:column;background:#fff}
+.ai-chat-head{padding:20px 24px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}.ai-chat-head small{display:block;color:#777;margin-top:3px}
+.icon-btn{border:0;background:#f5f3fb;border-radius:10px;padding:9px 11px;cursor:pointer}
+.ai-messages{flex:1;padding:26px;overflow:auto;display:flex;flex-direction:column;gap:14px;min-height:360px}
+.ai-msg{max-width:82%;padding:14px 16px;border-radius:18px;line-height:1.6;white-space:pre-wrap}
+.ai-msg.user{align-self:flex-end;background:linear-gradient(135deg,#5634c7,#7b57e6);color:#fff;border-bottom-right-radius:5px}
+.ai-msg.assistant{align-self:flex-start;background:#f3f1f8;color:#202035;border-bottom-left-radius:5px}
+.ai-msg.system{align-self:center;text-align:center;color:#777;font-size:13px;background:transparent}
+.ai-input-wrap{margin:0 20px 12px;border:1px solid #d8d3e8;border-radius:18px;padding:10px;background:#fff;display:flex;gap:10px;align-items:flex-end}
+#aiPrompt{flex:1;border:0;outline:0;resize:none;font:inherit;padding:8px;max-height:160px}
+.ai-input-actions{display:flex;gap:7px}.voice-btn,.send-btn{border:0;border-radius:12px;padding:11px 14px;cursor:pointer}.voice-btn{background:#f0edf8}.send-btn{background:#5634c7;color:#fff;font-weight:700}.send-btn:disabled{opacity:.55;cursor:not-allowed}
+.ai-privacy{padding:0 24px 18px;color:#888;text-align:center}
+@media(max-width:760px){.ai-app{grid-template-columns:1fr}.ai-sidebar{display:none}.ai-conversation{min-height:70vh}.ai-msg{max-width:92%}}
