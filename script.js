@@ -156,31 +156,64 @@ async function translateLesson() {
   }
 
   out.textContent = "Translating...";
-  status.textContent = "Connecting to translation service...";
+  status.textContent = "Using context-aware translation...";
 
+  // Primary translator: Google's public translation endpoint.
+  // This gives significantly better Hindi sentence translation than MyMemory
+  // for short educational sentences used in this prototype.
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${tgt}`;
-    const response = await fetch(url);
+    const googleUrl =
+      "https://translate.googleapis.com/translate_a/single?client=gtx" +
+      "&sl=" + encodeURIComponent(src) +
+      "&tl=" + encodeURIComponent(tgt) +
+      "&dt=t&q=" + encodeURIComponent(text);
+
+    const response = await fetch(googleUrl);
+    if (!response.ok) throw new Error("Primary translator unavailable");
+
     const data = await response.json();
+    const translated = Array.isArray(data?.[0])
+      ? data[0].map(part => part?.[0] || "").join("").trim()
+      : "";
 
-    if (!data.responseData?.translatedText) throw new Error("No translation returned");
+    if (!translated) throw new Error("Empty translation");
 
-    lastTranslation = data.responseData.translatedText;
+    lastTranslation = translated;
+    out.textContent = translated;
+    status.textContent = "✓ Accurate translation completed.";
+    showToast("Translation completed!");
+    return;
+  } catch (primaryError) {
+    console.warn("Primary translation failed:", primaryError);
+  }
+
+  // Secondary fallback.
+  try {
+    const fallbackUrl =
+      "https://api.mymemory.translated.net/get?q=" +
+      encodeURIComponent(text) +
+      "&langpair=" + encodeURIComponent(src + "|" + tgt);
+
+    const response = await fetch(fallbackUrl);
+    const data = await response.json();
+    const translated = data?.responseData?.translatedText?.trim();
+
+    if (!translated) throw new Error("No fallback translation");
+
+    // Decode any HTML entities returned by the fallback service.
+    const decoder = document.createElement("textarea");
+    decoder.innerHTML = translated;
+    lastTranslation = decoder.value;
+
     out.textContent = lastTranslation;
-    status.textContent = "✓ Translation completed. Tap Native Pronunciation to hear it.";
+    status.textContent = "✓ Translation completed using backup service.";
     showToast("Translation completed!");
   } catch (error) {
-    const fallback = {
-      hi: "यह एक आम है।",
-      or: "ଏହା ଏକ ଆମ୍ବ।",
-      bn: "এটি একটি আম।",
-      en: text
-    };
-
-    lastTranslation = fallback[tgt] || "Translation service unavailable for this language. Connect a production translation API for full coverage.";
-    out.textContent = lastTranslation;
-    status.textContent = "Demo fallback used.";
-    showToast("Showing demo fallback.");
+    console.error("Translation error:", error);
+    out.textContent = "Translation service is temporarily unavailable. Please try again.";
+    lastTranslation = "";
+    status.textContent = "⚠ Unable to connect to translation service.";
+    showToast("Translation failed. Check your internet connection.");
   }
 }
 
