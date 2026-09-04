@@ -13,3 +13,18 @@
 .score-box button{margin-left:10px}
 @media(max-width:800px){.curriculum-controls{grid-template-columns:1fr}.topic-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:500px){.topic-grid{grid-template-columns:1fr}.quiz-actions{width:100%}.quiz-actions button{flex:1}}
+
+/* Interactive Ask • Understand • Learn AI modes */
+.ai-mode-tabs{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+.ai-mode{border:1px solid var(--border);background:#fff;padding:12px 18px;border-radius:12px;font-weight:800;cursor:pointer}
+.ai-mode.active{background:linear-gradient(135deg,var(--p),#8b62e8);color:#fff;border-color:transparent;box-shadow:0 8px 22px #6d4ee333}
+.ai-context{margin:0 auto 16px;max-width:900px}
+.ai-context label{display:block;font-weight:800;margin-bottom:8px;color:#27304a}
+.ai-context label span{font-weight:500;color:#78809a;font-size:12px}
+.ai-context textarea{width:100%;min-height:92px;resize:vertical;border:1px solid var(--border);border-radius:14px;padding:14px;font:inherit;box-sizing:border-box;background:#fff}
+.ai-disclaimer{text-align:center;font-size:12px;color:#7b8298;margin-top:12px}
+.message.bot{line-height:1.65}
+.message.bot ol{margin:8px 0 4px;padding-left:22px}
+.typing span{animation:aiBlink 1s infinite}.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes aiBlink{50%{opacity:.25}}
+@media(max-width:600px){.ai-mode-tabs{display:grid;grid-template-columns:1fr}.ai-mode{width:100%}}
