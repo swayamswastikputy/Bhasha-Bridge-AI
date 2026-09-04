@@ -25,7 +25,26 @@
 <div class="video-grid"><div class="upload-card"><input type="file" id="videoFile" accept="video/*" hidden onchange="loadVideo(this)"><div class="dropzone" onclick="document.getElementById('videoFile').click()"><div class="upload-icon">🎬</div><h3>Upload Educational Video</h3><p>MP4, WebM or MOV</p><button class="secondary">Choose Video</button></div><video id="videoPreview" controls></video><div id="videoMeta" class="video-meta"></div></div>
 <div class="pipeline-card"><h3>AI Dubbing Pipeline</h3><ol><li><span>01</span> Speech-to-text with timestamps</li><li><span>02</span> Context-aware translation</li><li><span>03</span> Native-language voice synthesis</li><li><span>04</span> Audio timing synchronization</li><li><span>05</span> Subtitles & dubbed output</li></ol><select id="videoTarget"><option value="hi">Hindi</option><option value="or">Odia</option><option value="bn">Bengali</option></select><button class="primary full" onclick="processVideo()">⚡ Process Video</button><div id="videoProgress" class="progress-box">Upload a video to begin.</div><small>Production dubbing requires a backend/API (Whisper + translation + neural TTS + FFmpeg). This frontend is ready to connect to that pipeline.</small></div></div></section>
 
-<section class="section" id="tutor"><div class="section-title center"><div><div class="eyebrow">AI LEARNING ASSISTANT</div><h2>Ask. Understand. Learn.</h2></div></div><div class="tutor"><div class="chat" id="chat"><div class="message bot">👋 Hello! I'm Bhasha, your AI learning friend. Ask me about your lesson.</div></div><div class="quick-questions"><button onclick="quickAsk('Explain this lesson simply')">Explain simply</button><button onclick="quickAsk('Give me an example')">Give an example</button><button onclick="quickAsk('Why is this important?')">Why is this important?</button></div><div class="askbar"><input id="question" placeholder="Ask your question..."><button onclick="askAI()">Ask AI ✨</button></div></div></section>
+<section class="section" id="tutor"><div class="section-title center"><div><div class="eyebrow">AI LEARNING ASSISTANT</div><h2>Ask. Understand. Learn.</h2><p>Your interactive learning copilot: ask doubts, simplify concepts and generate practice instantly.</p></div></div>
+<div class="tutor">
+  <div class="ai-mode-tabs">
+    <button class="ai-mode active" data-mode="ask" onclick="setAIMode('ask')">💬 Ask AI</button>
+    <button class="ai-mode" data-mode="understand" onclick="setAIMode('understand')">💡 Understand</button>
+    <button class="ai-mode" data-mode="learn" onclick="setAIMode('learn')">🎯 Learn & Practice</button>
+  </div>
+  <div class="ai-context">
+    <label>Lesson / Topic Context <span>(optional but recommended)</span></label>
+    <textarea id="lessonContext" placeholder="Paste a lesson, chapter paragraph, or topic here. BhashaBridge will use it as learning context."></textarea>
+  </div>
+  <div class="chat" id="chat"><div class="message bot">👋 Hello! I’m Bhasha. Select a mode above and tell me what you want to learn.</div></div>
+  <div class="quick-questions" id="quickQuestions">
+    <button onclick="quickAsk('Explain this topic in simple words')">Explain simply</button>
+    <button onclick="quickAsk('Give me a real life example')">Give example</button>
+    <button onclick="quickAsk('What are the key points?')">Key points</button>
+  </div>
+  <div class="askbar"><input id="question" placeholder="Ask any question about your lesson..."><button id="askButton" onclick="askAI()">Ask AI ✨</button></div>
+  <div class="ai-disclaimer">Prototype intelligence works locally for learning workflows. Connect an LLM backend/API for unrestricted generative answers.</div>
+</div></section>
 
 <section class="section" id="curriculum">
 <div class="section-title"><div><div class="eyebrow">JHARKHAND LEARNING MAP</div><h2>Class-wise Syllabus Explorer</h2><p>Choose class and subject to generate curriculum-aligned practice. The content structure is designed around JCERT/JAC learning resources; official source links remain available for verification.</p></div></div>
