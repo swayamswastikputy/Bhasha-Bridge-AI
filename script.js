@@ -522,7 +522,10 @@ function initializeCurriculum() {
       .map(s => `<option value="${s}">${s}</option>`).join("");
   }
 
-  classSelect.addEventListener("change", loadSubjects);
+  classSelect.addEventListener("change", () => {
+    loadSubjects();
+    renderCurriculum();
+  });
   loadSubjects();
   renderCurriculum();
 }
