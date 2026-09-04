@@ -4,7 +4,18 @@ let lastTranslation = "";
 let baseText = "";
 let finalResults = [];
 
-const langMap = { en:"en-US", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ta:"ta-IN", te:"te-IN", mr:"mr-IN" };
+const langMap = {
+  en:"en-US", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ur:"ur-IN",
+  sat:"sat-IN", unr:"unr-IN", hoc:"hoc-IN", kru:"kru-IN", kha:"kha-IN",
+  nag:"nag-IN", kfy:"kfy-IN", kho:"kho-IN", ppg:"ppg-IN",
+  ta:"ta-IN", te:"te-IN", mr:"mr-IN"
+};
+const languageNames = {
+  en:"English", hi:"Hindi", bn:"Bengali", or:"Odia", ur:"Urdu",
+  sat:"Santali", unr:"Mundari", hoc:"Ho", kru:"Kurukh", kha:"Kharia",
+  nag:"Nagpuri", kfy:"Kurmali", kho:"Khortha", ppg:"Panchpargania",
+  ta:"Tamil", te:"Telugu", mr:"Marathi"
+};
 
 function showToast(message) {
   const toast = document.getElementById("toast");
@@ -316,55 +327,227 @@ function askAI() {
   input.value = "";
 }
 
+// ---------------- INFINITE ADAPTIVE QUIZ ENGINE ----------------
 let score = 0;
 let answered = 0;
+let streak = 0;
+let quizDifficulty = "easy";
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function shuffle(items) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
+function setQuizDifficulty(level) {
+  quizDifficulty = level;
+  const label = document.getElementById("quizLevel");
+  if (label) label.textContent = "Level: " + level.charAt(0).toUpperCase() + level.slice(1);
+  generateQuiz();
+}
+
+function makeMathQuestion() {
+  const hard = quizDifficulty === "medium";
+  const a = rand(hard ? 10 : 1, hard ? 99 : 20);
+  const b = rand(hard ? 5 : 1, hard ? 50 : 20);
+  const op = shuffle(["+", "-", "×"])[0];
+  let answer = op === "+" ? a + b : op === "-" ? a - b : a * b;
+  const question = op === "-" && b > a
+    ? `What is ${b} - ${a}?`
+    : `What is ${a} ${op} ${b}?`;
+  if (op === "-" && b > a) answer = b - a;
+  return { question, answer: String(answer), subject:"Mathematics" };
+}
+
+const knowledgeBank = [
+  {q:"What is the main source of energy for Earth?", a:"The Sun", subject:"Science"},
+  {q:"Which part of a plant absorbs water from soil?", a:"Roots", subject:"Science"},
+  {q:"Which gas do plants use during photosynthesis?", a:"Carbon dioxide", subject:"Science"},
+  {q:"How many days are there in a leap year?", a:"366", subject:"Mathematics"},
+  {q:"What is the capital of Jharkhand?", a:"Ranchi", subject:"Social Science"},
+  {q:"Which mineral-rich state is Jharkhand known for?", a:"Jharkhand", subject:"Social Science"},
+  {q:"What should we do before eating food?", a:"Wash hands", subject:"EVS"},
+  {q:"Which organ pumps blood through the body?", a:"Heart", subject:"Science"},
+  {q:"What is the opposite of 'hot'?", a:"Cold", subject:"English"},
+  {q:"Which season brings heavy rainfall in India?", a:"Monsoon", subject:"EVS"},
+  {q:"How many continents are there?", a:"7", subject:"Geography"},
+  {q:"Which shape has three sides?", a:"Triangle", subject:"Mathematics"},
+  {q:"What do we call a baby plant?", a:"Seedling", subject:"Science"},
+  {q:"Which direction does the Sun generally rise from?", a:"East", subject:"EVS"},
+  {q:"What is 5 × 5?", a:"25", subject:"Mathematics"},
+  {q:"Which is a renewable source of energy?", a:"Solar energy", subject:"Science"},
+  {q:"What is the national animal of India?", a:"Tiger", subject:"General Knowledge"},
+  {q:"Which language is written in Devanagari script?", a:"Hindi", subject:"Language"}
+];
+
+function makeKnowledgeQuestion() {
+  const item = knowledgeBank[rand(0, knowledgeBank.length - 1)];
+  const distractors = shuffle(knowledgeBank
+    .map(x => x.a)
+    .filter(a => a !== item.a && a.length < 30)
+  ).slice(0,3);
+  return { question:item.q, answer:item.a, subject:item.subject, distractors };
+}
+
+function buildOptions(answer, distractors = []) {
+  const pool = [...new Set([answer, ...distractors])];
+  while (pool.length < 4) pool.push(String(rand(1, 100)));
+  return shuffle(pool.slice(0,4));
+}
+
+function generateQuestion() {
+  if (Math.random() < 0.45) {
+    const item = makeMathQuestion();
+    const ans = Number(item.answer);
+    return {
+      ...item,
+      options: buildOptions(item.answer, [
+        String(ans + rand(1, 9)),
+        String(Math.max(0, ans - rand(1, 9))),
+        String(ans + rand(10, 20))
+      ])
+    };
+  }
+  const item = makeKnowledgeQuestion();
+  return {...item, options:buildOptions(item.answer, item.distractors)};
+}
 
 function generateQuiz() {
   score = 0;
-  answered = 0;
-
-  const questions = [
-    ["What is the source of energy for plants?", ["Sunlight", "Plastic", "Stone", "Car"], 0],
-    ["Which helps plants grow?", ["Water", "Phone", "Toy", "TV"], 0],
-    ["What improves understanding?", ["Learning in a familiar language", "Skipping lessons", "Ignoring class", "No questions"], 0]
-  ];
-
+  const questions = Array.from({length: 5}, generateQuestion);
   const container = document.getElementById("quizContainer");
+
   container.innerHTML = questions.map((item, index) => `
-    <div class="quiz-card">
-      <b>Q${index + 1}. ${item[0]}</b>
+    <div class="quiz-card" data-answer="${encodeURIComponent(item.answer)}">
+      <div class="question-tag">${item.subject} • Question ${index + 1}</div>
+      <b>Q${index + 1}. ${item.question}</b>
       <div class="options">
-        ${item[1].map((option, optionIndex) => `
-          <button class="option" onclick="checkAnswer(this, ${optionIndex}, ${item[2]})">${option}</button>
+        ${item.options.map(option => `
+          <button class="option" data-value="${encodeURIComponent(option)}" onclick="checkAnswer(this)">${option}</button>
         `).join("")}
       </div>
     </div>
   `).join("");
 
-  document.getElementById("scoreBox").textContent = "";
+  document.getElementById("scoreBox").textContent = "Answer all 5 questions to complete this round.";
 }
 
-function checkAnswer(button, selected, correct) {
+function checkAnswer(button) {
   const card = button.closest(".quiz-card");
   if (card.dataset.done) return;
 
   card.dataset.done = "1";
   answered++;
 
-  card.querySelectorAll(".option").forEach((option, index) => {
+  const correct = decodeURIComponent(card.dataset.answer);
+  const selected = decodeURIComponent(button.dataset.value);
+  const isCorrect = selected.trim().toLowerCase() === correct.trim().toLowerCase();
+
+  card.querySelectorAll(".option").forEach(option => {
     option.disabled = true;
-    if (index === correct) option.classList.add("correct");
+    if (decodeURIComponent(option.dataset.value).trim().toLowerCase() === correct.trim().toLowerCase()) {
+      option.classList.add("correct");
+    }
   });
 
-  if (selected === correct) {
+  if (isCorrect) {
     score++;
-    showToast("Correct! 🎉");
+    streak++;
+    showToast("Correct! 🔥 Streak " + streak);
   } else {
+    streak = 0;
     button.classList.add("wrong");
-    showToast("Keep learning!");
+    showToast("Correct answer: " + correct);
   }
 
-  if (answered === 3) {
-    document.getElementById("scoreBox").textContent = `Final Score: ${score} / 3 ${score === 3 ? "🏆 Excellent!" : "📚 Keep learning!"}`;
+  document.getElementById("quizStreak").textContent = "🔥 Streak: " + streak;
+  document.getElementById("quizTotal").textContent = "Questions answered: " + answered;
+
+  const done = document.querySelectorAll(".quiz-card[data-done='1']").length;
+  if (done === 5) {
+    document.getElementById("scoreBox").innerHTML =
+      `Round complete: ${score}/5 ⭐ <button class="primary" onclick="generateQuiz()">Generate 5 New Questions →</button>`;
   }
 }
+
+// ---------------- JHARKHAND CURRICULUM EXPLORER ----------------
+// Topic maps are a learning-practice layer. Official syllabus/textbook links
+// are exposed in the UI so the prototype can be kept aligned with JCERT/JAC.
+const curriculumMap = {
+  primary:["Language & Literacy","Mathematics","EVS","Art & Culture","Physical Education"],
+  middle:["Hindi / Regional Language","English","Mathematics","Science","Social Science","Computer & Digital Literacy"],
+  secondary:["Hindi / Regional Language","English","Mathematics","Science","Social Science","Vocational / Skill Education"],
+  senior:["Languages","Physics","Chemistry","Biology","Mathematics","History","Geography","Political Science","Economics","Commerce"]
+};
+
+const topicMap = {
+  "Mathematics":["Number sense","Arithmetic","Fractions","Geometry","Measurement","Data handling","Problem solving"],
+  "Science":["Living world","Matter","Force and motion","Energy","Environment","Scientific inquiry"],
+  "EVS":["Family and community","Food","Water","Plants and animals","Health","Environment"],
+  "Social Science":["History","Geography","Civics","Economy","Jharkhand heritage"],
+  "Hindi / Regional Language":["Reading","Writing","Grammar","Vocabulary","Storytelling","Local culture"],
+  "Language & Literacy":["Listening","Speaking","Reading","Writing","Vocabulary","Comprehension"],
+  "English":["Listening","Speaking","Reading","Writing","Grammar","Vocabulary"],
+  "Physics":["Motion","Force","Work and energy","Light","Electricity","Modern physics"],
+  "Chemistry":["Matter","Atoms","Chemical reactions","Acids and bases","Carbon compounds"],
+  "Biology":["Cell","Life processes","Genetics","Ecology","Human health"],
+  "History":["Ancient India","Medieval India","Modern India","Jharkhand history"],
+  "Geography":["Resources","Climate","Maps","India","Jharkhand geography"],
+  "Political Science":["Constitution","Democracy","Rights","Government"],
+  "Economics":["Development","Resources","Markets","Public finance"],
+  "Commerce":["Accounting","Business studies","Economics","Entrepreneurship"]
+};
+
+function getStage(cls) {
+  const n = Number(cls);
+  if (n <= 5) return "primary";
+  if (n <= 8) return "middle";
+  if (n <= 10) return "secondary";
+  return "senior";
+}
+
+function initializeCurriculum() {
+  const classSelect = document.getElementById("classSelect");
+  const subjectSelect = document.getElementById("subjectSelect");
+  if (!classSelect || !subjectSelect) return;
+
+  classSelect.innerHTML = Array.from({length:12}, (_,i) =>
+    `<option value="${i+1}">Class ${i+1}</option>`
+  ).join("");
+
+  function loadSubjects() {
+    const stage = getStage(classSelect.value);
+    subjectSelect.innerHTML = curriculumMap[stage]
+      .map(s => `<option value="${s}">${s}</option>`).join("");
+  }
+
+  classSelect.addEventListener("change", loadSubjects);
+  loadSubjects();
+  renderCurriculum();
+}
+
+function renderCurriculum() {
+  const cls = document.getElementById("classSelect");
+  const subject = document.getElementById("subjectSelect");
+  const result = document.getElementById("curriculumResult");
+  if (!cls || !subject || !result) return;
+
+  const topics = topicMap[subject.value] ||
+    (subject.value.includes("Regional") ? topicMap["Hindi / Regional Language"] :
+      ["Core concepts","Reading and understanding","Practice","Application","Assessment"]);
+
+  result.innerHTML = `
+    <div class="curriculum-head">
+      <span class="curriculum-badge">Class ${cls.value}</span>
+      <h3>${subject.value}</h3>
+    </div>
+    <p>Suggested learning and practice areas for BhashaBridge AI:</p>
+    <div class="topic-grid">
+      ${topics.map((t,i)=>`<div class="topic-card"><b>${String(i+1).padStart(2,"0")}</b><span>${t}</span></div>`).join("")}
+    </div>
+    <div class="regional-note">🌍 Mother-tongue support layer: Hindi, Urdu, Bengali, Odia, Santali, Mundari, Ho, Kurukh, Kharia, Nagpuri, Kurmali, Khortha and Panchpargania are available in the language selector. Full curriculum content should be synced against official JCERT/J-Guruji resources before production deployment.</div>
+  `;
+}
+
+document.addEventListener("DOMContentLoaded", initializeCurriculum);
