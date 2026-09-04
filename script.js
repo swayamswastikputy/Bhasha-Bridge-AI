@@ -772,3 +772,108 @@ function renderCurriculum() {
 }
 
 document.addEventListener("DOMContentLoaded", () => { initializeCurriculum(); updateLearningDashboard(); });
+
+
+// ---------------- VIDEO SECTION RELIABILITY FIX ----------------
+let currentVideoURL = null;
+
+function loadVideo(input) {
+  const file = input && input.files && input.files[0];
+  const preview = document.getElementById("videoPreview");
+  const meta = document.getElementById("videoMeta");
+  const progress = document.getElementById("videoProgress");
+
+  if (!file) {
+    showToast("Please select a video file.");
+    return;
+  }
+  if (!file.type.startsWith("video/")) {
+    showToast("Please upload a valid video file.");
+    input.value = "";
+    return;
+  }
+
+  if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
+  currentVideoURL = URL.createObjectURL(file);
+  preview.src = currentVideoURL;
+  preview.style.display = "block";
+  preview.load();
+
+  meta.innerHTML = "<b>✓ " + escapeHTML(file.name) + "</b><br>" +
+    (file.size / (1024 * 1024)).toFixed(2) + " MB • Ready for processing";
+  progress.textContent = "✓ Video uploaded successfully. Choose target language and click Process Video.";
+  showToast("Video uploaded successfully!");
+}
+
+function processVideo() {
+  const input = document.getElementById("videoFile");
+  const file = input && input.files && input.files[0];
+  const target = document.getElementById("videoTarget");
+  const progress = document.getElementById("videoProgress");
+
+  if (!file) {
+    showToast("Upload a video first.");
+    document.getElementById("videoFile")?.click();
+    return;
+  }
+
+  const targetName = target?.options[target.selectedIndex]?.text || "selected language";
+  const steps = [
+    "🎤 Extracting audio from video...",
+    "📝 Analyzing speech and creating transcript...",
+    "🌐 Translating lesson into " + targetName + "...",
+    "🔊 Preparing target-language voice track...",
+    "📝 Generating subtitle timeline...",
+    "✓ Processing workflow completed!"
+  ];
+
+  let i = 0;
+  progress.textContent = steps[0];
+  const timer = setInterval(() => {
+    i++;
+    if (i >= steps.length) {
+      clearInterval(timer);
+      progress.innerHTML = "<b>✓ Demo pipeline completed.</b><br>" +
+        "Video preview is ready. For actual downloadable dubbed video, connect the production backend (speech-to-text + translation + TTS + FFmpeg).";
+      showToast("Video workflow completed!");
+      return;
+    }
+    progress.textContent = steps[i];
+  }, 900);
+}
+
+// ---------------- CURRICULUM RELIABILITY FIX ----------------
+function safeInitializeCurriculum() {
+  const classSelect = document.getElementById("classSelect");
+  const subjectSelect = document.getElementById("subjectSelect");
+  if (!classSelect || !subjectSelect) return;
+
+  if (!classSelect.options.length) {
+    classSelect.innerHTML = Array.from({length: 12}, (_, i) =>
+      '<option value="' + (i + 1) + '">Class ' + (i + 1) + '</option>'
+    ).join("");
+  }
+
+  const updateSubjects = () => {
+    const stage = getStage(classSelect.value);
+    subjectSelect.innerHTML = (curriculumMap[stage] || [])
+      .map(s => '<option value="' + s + '">' + s + '</option>').join("");
+  };
+
+  updateSubjects();
+  classSelect.onchange = () => {
+    updateSubjects();
+    renderCurriculum();
+  };
+  subjectSelect.onchange = renderCurriculum;
+
+  try { renderCurriculum(); } catch (error) {
+    console.error("Curriculum initialization error:", error);
+    const result = document.getElementById("curriculumResult");
+    if (result) result.innerHTML = '<div class="empty">Select a class and subject, then click Load Learning Plan.</div>';
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  safeInitializeCurriculum();
+});
