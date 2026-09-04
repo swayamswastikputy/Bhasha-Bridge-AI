@@ -1,8 +1,8 @@
 let recognition = null;
 let listening = false;
 let lastTranslation = "";
-let committedText = "";
 let baseText = "";
+let restartTimer = null;
 
 const langMap = { en:"en-US", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ta:"ta-IN", te:"te-IN", mr:"mr-IN" };
 
@@ -14,121 +14,92 @@ function showToast(message) {
   window.__toastTimer = setTimeout(() => toast.style.display = "none", 2500);
 }
 
-function normalizeSpeech(text) {
-  return text.toLowerCase().replace(/[^a-z0-9\s']/g, " ").replace(/\s+/g, " ").trim();
-}
-
-// Merge new speech with existing speech without repeating overlapping words.
-// Example: "hello what" + "what is your name" => "hello what is your name"
-function mergeSpeech(existing, incoming) {
-  existing = existing.trim();
-  incoming = incoming.trim();
-  if (!incoming) return existing;
-  if (!existing) return incoming;
-
-  const oldNorm = normalizeSpeech(existing);
-  const newNorm = normalizeSpeech(incoming);
-  if (oldNorm === newNorm || oldNorm.endsWith(newNorm)) return existing;
-
-  const oldWords = existing.split(/\s+/);
-  const newWords = incoming.split(/\s+/);
-  const max = Math.min(oldWords.length, newWords.length, 15);
-
-  for (let n = max; n >= 1; n--) {
-    const suffix = normalizeSpeech(oldWords.slice(-n).join(" "));
-    const prefix = normalizeSpeech(newWords.slice(0, n).join(" "));
-    if (suffix && suffix === prefix) {
-      return (existing + " " + newWords.slice(n).join(" ")).trim();
-    }
-  }
-  return (existing + " " + incoming).trim();
-}
-
 function toggleListening() {
   listening ? stopListening() : startVoice();
 }
 
+/*
+  IMPORTANT FIX:
+  Chrome's SpeechRecognition returns cumulative results and may resend
+  earlier words. We NEVER append result chunks anymore.
+  Instead, on every event we rebuild the transcript from the current
+  recognition session's FINAL results exactly once.
+*/
 function startVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    showToast("Speech recognition is best supported in Chrome.");
+    showToast("Please use Chrome for live speech recognition.");
     return;
   }
 
-  baseText = document.getElementById("inputText").value.trim();
-  committedText = "";
+  const input = document.getElementById("inputText");
+  baseText = input.value.trim();
 
   recognition = new SR();
   recognition.lang = langMap[document.getElementById("sourceLanguage").value] || "en-US";
-
-  // Mobile Chrome is more accurate with short recognition sessions.
   recognition.continuous = false;
-  recognition.interimResults = true;
+  recognition.interimResults = false; // Do not display unstable/interim words.
   recognition.maxAlternatives = 1;
 
   recognition.onresult = (event) => {
-    let interim = "";
+    const finalParts = [];
 
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const phrase = event.results[i][0].transcript.trim();
-      if (!phrase) continue;
-
+    // Rebuild from indexed results instead of appending chunks.
+    for (let i = 0; i < event.results.length; i++) {
       if (event.results[i].isFinal) {
-        // Only final speech is permanently added.
-        committedText = mergeSpeech(committedText, phrase);
-      } else {
-        // Interim text is preview-only and is never permanently appended.
-        interim = phrase;
+        finalParts.push(event.results[i][0].transcript.trim());
       }
     }
 
-    const stable = mergeSpeech(baseText, committedText);
-    document.getElementById("inputText").value = (stable + (interim ? " " + interim : "")).trim();
-    document.getElementById("micStatus").textContent = interim ? "● HEARING: " + interim : "● LISTENING LIVE";
+    const sessionText = finalParts.join(" ").replace(/\s+/g, " ").trim();
+    input.value = [baseText, sessionText].filter(Boolean).join(" ").trim();
+    document.getElementById("micStatus").textContent = "● HEARD: " + sessionText;
   };
 
   recognition.onend = () => {
     if (!listening) return;
 
-    // Save only the confirmed text, then start a clean new session.
-    baseText = mergeSpeech(baseText, committedText);
-    committedText = "";
-
-    setTimeout(() => {
+    // Save the completed session ONCE before a fresh session starts.
+    baseText = input.value.trim();
+    restartTimer = setTimeout(() => {
       if (listening) {
-        try { recognition.start(); } catch (_) {}
+        try { recognition.start(); } catch (e) {}
       }
-    }, 150);
+    }, 300);
   };
 
   recognition.onerror = (event) => {
+    if (event.error === "no-speech") return;
     if (event.error === "not-allowed" || event.error === "service-not-allowed") {
       stopListening();
       showToast("Please allow microphone permission.");
+      return;
     }
+    console.warn("Speech recognition error:", event.error);
   };
 
+  listening = true;
   try {
     recognition.start();
-    listening = true;
     document.body.classList.add("listening");
     document.getElementById("startBtn").textContent = "⏹ Stop Listening";
     document.getElementById("micStatus").textContent = "● LISTENING LIVE";
-    showToast("Listening started — speak naturally.");
-  } catch (_) {
+    showToast("Listening started. Speak clearly.");
+  } catch (e) {
+    listening = false;
     showToast("Microphone could not be started.");
   }
 }
 
 function stopListening() {
   listening = false;
-  baseText = mergeSpeech(baseText, committedText);
-  committedText = "";
-  if (recognition) { try { recognition.stop(); } catch (_) {} }
+  clearTimeout(restartTimer);
+  if (recognition) {
+    try { recognition.stop(); } catch (e) {}
+  }
   document.body.classList.remove("listening");
   document.getElementById("startBtn").textContent = "🎤 Start Listening";
   document.getElementById("micStatus").textContent = "● READY";
-  document.getElementById("inputText").value = baseText;
 }
 
 async function translateLesson() {
