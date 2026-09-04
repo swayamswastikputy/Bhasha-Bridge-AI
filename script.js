@@ -1,43 +1,47 @@
 let recognition = null;
 let listening = false;
 let lastTranslation = "";
-let liveBaseText = "";
-let liveFinalText = "";
-let lastFinalPhrase = "";
-let finalSegments = new Set();
+let committedText = "";
+let baseText = "";
 
-const langMap = {
-  en: "en-US",
-  hi: "hi-IN",
-  bn: "bn-IN",
-  or: "or-IN",
-  ta: "ta-IN",
-  te: "te-IN",
-  mr: "mr-IN"
-};
+const langMap = { en:"en-US", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ta:"ta-IN", te:"te-IN", mr:"mr-IN" };
 
 function showToast(message) {
   const toast = document.getElementById("toast");
   toast.textContent = message;
   toast.style.display = "block";
   clearTimeout(window.__toastTimer);
-  window.__toastTimer = setTimeout(() => {
-    toast.style.display = "none";
-  }, 2500);
+  window.__toastTimer = setTimeout(() => toast.style.display = "none", 2500);
 }
 
 function normalizeSpeech(text) {
-  return text
-    .toLowerCase()
-    .replace(/[.,!?;:]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return text.toLowerCase().replace(/[^a-z0-9\s']/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function renderLiveTranscript(interim = "") {
-  const box = document.getElementById("inputText");
-  const parts = [liveBaseText.trim(), liveFinalText.trim(), interim.trim()].filter(Boolean);
-  box.value = parts.join(parts.length > 1 ? " " : "");
+// Merge new speech with existing speech without repeating overlapping words.
+// Example: "hello what" + "what is your name" => "hello what is your name"
+function mergeSpeech(existing, incoming) {
+  existing = existing.trim();
+  incoming = incoming.trim();
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+
+  const oldNorm = normalizeSpeech(existing);
+  const newNorm = normalizeSpeech(incoming);
+  if (oldNorm === newNorm || oldNorm.endsWith(newNorm)) return existing;
+
+  const oldWords = existing.split(/\s+/);
+  const newWords = incoming.split(/\s+/);
+  const max = Math.min(oldWords.length, newWords.length, 15);
+
+  for (let n = max; n >= 1; n--) {
+    const suffix = normalizeSpeech(oldWords.slice(-n).join(" "));
+    const prefix = normalizeSpeech(newWords.slice(0, n).join(" "));
+    if (suffix && suffix === prefix) {
+      return (existing + " " + newWords.slice(n).join(" ")).trim();
+    }
+  }
+  return (existing + " " + incoming).trim();
 }
 
 function toggleListening() {
@@ -45,22 +49,20 @@ function toggleListening() {
 }
 
 function startVoice() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
     showToast("Speech recognition is best supported in Chrome.");
     return;
   }
 
-  // Keep existing typed content, then append only newly recognized speech.
-  liveBaseText = document.getElementById("inputText").value.trim();
-  liveFinalText = "";
-  lastFinalPhrase = "";
-  finalSegments = new Set();
+  baseText = document.getElementById("inputText").value.trim();
+  committedText = "";
 
-  recognition = new SpeechRecognition();
-  recognition.lang = langMap[document.getElementById("sourceLanguage").value] || "en-IN";
-  recognition.continuous = true;
+  recognition = new SR();
+  recognition.lang = langMap[document.getElementById("sourceLanguage").value] || "en-US";
+
+  // Mobile Chrome is more accurate with short recognition sessions.
+  recognition.continuous = false;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
@@ -69,45 +71,40 @@ function startVoice() {
 
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const phrase = event.results[i][0].transcript.trim();
-
       if (!phrase) continue;
 
       if (event.results[i].isFinal) {
-        const normalized = normalizeSpeech(phrase);
-
-        // Chrome can occasionally emit the same final recognition result twice.
-        // Ignore an exact duplicate so the transcript never becomes "hello hello".
-        if (normalized && normalized !== lastFinalPhrase && !finalSegments.has(normalized)) {
-          liveFinalText = `${liveFinalText} ${phrase}`.trim();
-          finalSegments.add(normalized);
-          lastFinalPhrase = normalized;
-        }
+        // Only final speech is permanently added.
+        committedText = mergeSpeech(committedText, phrase);
       } else {
-        interim = `${interim} ${phrase}`.trim();
+        // Interim text is preview-only and is never permanently appended.
+        interim = phrase;
       }
     }
 
-    renderLiveTranscript(interim);
-    document.getElementById("micStatus").textContent = interim
-      ? `● HEARING: ${interim}`
-      : "● LISTENING LIVE";
+    const stable = mergeSpeech(baseText, committedText);
+    document.getElementById("inputText").value = (stable + (interim ? " " + interim : "")).trim();
+    document.getElementById("micStatus").textContent = interim ? "● HEARING: " + interim : "● LISTENING LIVE";
   };
 
   recognition.onend = () => {
-    // Continuous recognition can end automatically on mobile browsers.
-    // Restart only while the user still wants live listening.
-    if (listening) {
-      try {
-        recognition.start();
-      } catch (_) {
-        // Ignore a harmless "already started" race.
+    if (!listening) return;
+
+    // Save only the confirmed text, then start a clean new session.
+    baseText = mergeSpeech(baseText, committedText);
+    committedText = "";
+
+    setTimeout(() => {
+      if (listening) {
+        try { recognition.start(); } catch (_) {}
       }
-    }
+    }, 150);
   };
 
   recognition.onerror = (event) => {
-    if (event.error !== "no-speech" && event.error !== "aborted") {
-      showToast("Microphone error. Check browser permission.");
+    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+      stopListening();
+      showToast("Please allow microphone permission.");
     }
   };
 
@@ -125,16 +122,13 @@ function startVoice() {
 
 function stopListening() {
   listening = false;
-  if (recognition) {
-    try {
-      recognition.stop();
-    } catch (_) {}
-  }
-
+  baseText = mergeSpeech(baseText, committedText);
+  committedText = "";
+  if (recognition) { try { recognition.stop(); } catch (_) {} }
   document.body.classList.remove("listening");
   document.getElementById("startBtn").textContent = "🎤 Start Listening";
   document.getElementById("micStatus").textContent = "● READY";
-  renderLiveTranscript();
+  document.getElementById("inputText").value = baseText;
 }
 
 async function translateLesson() {
