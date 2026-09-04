@@ -319,6 +319,7 @@ function updateLearningDashboard(){
   const xp = learningState.xp || 0;
   const el = id => document.getElementById(id);
   if(el("masteryPercent")) el("masteryPercent").textContent = pct + "%";
+  if(el("masteryRing")) el("masteryRing").style.setProperty("--mastery", pct);
   if(el("masteryBar")) el("masteryBar").style.width = pct + "%";
   if(el("masteryText")) el("masteryText").textContent = learningState.completed ? learningState.completed + " learning milestones completed." : "Start a lesson to build your mastery.";
   if(el("learningStreak")) el("learningStreak").textContent = (learningState.streak || 0) + " day streak";
