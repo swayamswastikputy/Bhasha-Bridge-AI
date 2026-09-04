@@ -295,37 +295,176 @@ async function processVideo() {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ---------------- ASK • UNDERSTAND • LEARN AI WORKFLOW ----------------
+let aiMode = "ask";
+
+function escapeHTML(value) {
+  return String(value || "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+}
+
+function setAIMode(mode) {
+  aiMode = mode;
+  document.querySelectorAll(".ai-mode").forEach(btn =>
+    btn.classList.toggle("active", btn.dataset.mode === mode)
+  );
+
+  const input = document.getElementById("question");
+  const quick = document.getElementById("quickQuestions");
+  const labels = {
+    ask: {
+      placeholder:"Ask any question about your lesson...",
+      button:"Ask AI ✨",
+      prompts:[
+        ["What does this concept mean?","What does this concept mean?"],
+        ["Give me an example","Give me a real life example"],
+        ["What are the key points?","What are the key points?"]
+      ]
+    },
+    understand: {
+      placeholder:"Enter a concept you want explained simply...",
+      button:"Explain Clearly 💡",
+      prompts:[
+        ["Explain simply","Explain this topic in simple words"],
+        ["Step by step","Explain this step by step"],
+        ["Simple example","Give me a simple real life example"]
+      ]
+    },
+    learn: {
+      placeholder:"Enter a topic to create a learning plan...",
+      button:"Create Learning Plan 🎯",
+      prompts:[
+        ["5-minute lesson","Teach me this topic in 5 minutes"],
+        ["Practice questions","Create practice questions"],
+        ["Quick revision","Make a quick revision plan"]
+      ]
+    }
+  };
+
+  const config = labels[mode];
+  input.placeholder = config.placeholder;
+  document.getElementById("askButton").textContent = config.button;
+  quick.innerHTML = config.prompts.map(([label, value]) =>
+    `<button onclick="quickAsk('${value.replace(/'/g, "\\'")}')">${label}</button>`
+  ).join("");
+  showToast(mode.charAt(0).toUpperCase() + mode.slice(1) + " mode activated");
+}
+
 function quickAsk(question) {
   document.getElementById("question").value = question;
   askAI();
 }
 
+function getLearningContext() {
+  const context = document.getElementById("lessonContext")?.value.trim();
+  const live = document.getElementById("inputText")?.value.trim();
+  const translated = lastTranslation?.trim();
+  return context || translated || live || "";
+}
+
+function extractTopic(question, context) {
+  const clean = (question || context || "this topic")
+    .replace(/^(explain|teach|what is|tell me about|give me|create|make)\s+/i, "")
+    .replace(/[?!.]+$/,"").trim();
+  return clean.length > 90 ? clean.slice(0, 90) + "…" : clean || "this topic";
+}
+
+function sentenceList(text, limit=3) {
+  return (text || "")
+    .replace(/\s+/g," ").split(/(?<=[.!?])\s+/)
+    .map(s=>s.trim()).filter(Boolean).slice(0,limit);
+}
+
+function keywordList(text) {
+  const stop = new Set("the a an is are was were and or but of in on for to with from this that these those it its as by at be can may will into about what why how".split(" "));
+  const words = (text || "").toLowerCase().match(/[a-zA-Z]{4,}/g) || [];
+  const counts = {};
+  words.filter(w=>!stop.has(w)).forEach(w=>counts[w]=(counts[w]||0)+1);
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
+}
+
+function buildAskAnswer(question, context) {
+  const q = question.toLowerCase();
+  const topic = extractTopic(question, context);
+  const sentences = sentenceList(context, 3);
+
+  if (q.includes("example")) {
+    return `<b>Example for: ${escapeHTML(topic)}</b><br><br>Think of it in daily life: first identify the main idea, then connect it with something you can observe or do. <br><br><b>Try this:</b> Write one real-life example in your own words and explain why it matches the concept.`;
+  }
+  if (q.includes("why")) {
+    return `<b>Why it matters</b><br><br>${escapeHTML(topic)} is important because it helps you understand how an idea works and apply it beyond memorization.${sentences.length ? `<br><br><b>From your lesson context:</b> ${escapeHTML(sentences[0])}` : ""}`;
+  }
+  if (q.includes("key") || q.includes("point") || q.includes("summary")) {
+    const keys = keywordList(context || question);
+    return `<b>Key learning points</b><ol>${(keys.length ? keys : ["Main concept","Meaning","Example","Application"]).map(k=>`<li>${escapeHTML(k.charAt(0).toUpperCase()+k.slice(1))}</li>`).join("")}</ol><b>Memory tip:</b> Explain each point aloud in your own language.`;
+  }
+  return `<b>AI learning response</b><br><br><b>Your question:</b> ${escapeHTML(question)}<br><br>${sentences.length ? `Based on the lesson context, start with this idea: <i>${escapeHTML(sentences[0])}</i><br><br>` : ""}To understand <b>${escapeHTML(topic)}</b>, focus on: <ol><li>What it means</li><li>How it works</li><li>One real-life example</li><li>Where you can apply it</li></ol>`;
+}
+
+function buildUnderstandAnswer(question, context) {
+  const topic = extractTopic(question, context);
+  const sentences = sentenceList(context, 2);
+  return `<b>💡 Simple Explanation: ${escapeHTML(topic)}</b><br><br>
+  <b>1. Meaning:</b> Understand the core idea first—don't memorize blindly.<br>
+  <b>2. Break it down:</b> Divide the topic into small parts and learn one part at a time.<br>
+  <b>3. Connect it:</b> Link the idea with something you see in real life.<br>
+  <b>4. Explain it back:</b> If you can teach it in simple words, you truly understand it.
+  ${sentences.length ? `<br><br><b>Context simplified:</b> ${escapeHTML(sentences.join(" "))}` : ""}
+  <br><br><b>🧠 Check yourself:</b> Can you explain this topic to a Class 5 student in two sentences?`;
+}
+
+function buildLearnAnswer(question, context) {
+  const topic = extractTopic(question, context);
+  const keys = keywordList(context || question);
+  const concepts = keys.length ? keys.slice(0,3) : ["Core idea","Example","Practice"];
+  return `<b>🎯 Personalized Learning Plan: ${escapeHTML(topic)}</b><br><br>
+  <b>Step 1 — Learn (5 min)</b><br>Read the topic and identify: ${escapeHTML(concepts[0])}.<br><br>
+  <b>Step 2 — Understand (5 min)</b><br>Explain the idea in your mother tongue or simple English.<br><br>
+  <b>Step 3 — Apply (5 min)</b><br>Create one example involving ${escapeHTML(concepts[1] || "the concept")}.<br><br>
+  <b>Step 4 — Practice</b><br>Open the <b>Infinite Quiz</b> section and solve a fresh set of questions.<br><br>
+  <b>Step 5 — Revise</b><br>Write three keywords: ${concepts.map(escapeHTML).join(", ")}.`;
+}
+
 function askAI() {
   const input = document.getElementById("question");
   const question = input.value.trim();
-  if (!question) return;
+  const context = getLearningContext();
 
-  const chat = document.getElementById("chat");
-  chat.insertAdjacentHTML("beforeend", `<div class="message user">${question.replace(/[<>]/g, "")}</div>`);
-
-  const q = question.toLowerCase();
-  let answer;
-
-  if (q.includes("example")) {
-    answer = "Example: A mango tree needs sunlight, water, air and nutrients to grow.";
-  } else if (q.includes("why")) {
-    answer = "It helps us understand the idea and connect it to real life.";
-  } else {
-    answer = "Let me explain simply: break the lesson into small ideas, understand each one, then practice with an example.";
+  if (!question && !context) {
+    showToast("Enter a question or add lesson context first.");
+    return;
   }
 
+  const effectiveQuestion = question || "Help me understand this lesson";
+  const chat = document.getElementById("chat");
+  chat.insertAdjacentHTML("beforeend", `<div class="message user">${escapeHTML(effectiveQuestion)}</div>`);
+  input.value = "";
+
+  const typingId = "typing-" + Date.now();
+  chat.insertAdjacentHTML("beforeend", `<div class="message bot typing" id="${typingId}">🤖 Bhasha AI is thinking<span>.</span><span>.</span><span>.</span></div>`);
+  chat.scrollTop = chat.scrollHeight;
+
   setTimeout(() => {
+    let answer = aiMode === "understand"
+      ? buildUnderstandAnswer(effectiveQuestion, context)
+      : aiMode === "learn"
+        ? buildLearnAnswer(effectiveQuestion, context)
+        : buildAskAnswer(effectiveQuestion, context);
+
+    document.getElementById(typingId)?.remove();
     chat.insertAdjacentHTML("beforeend", `<div class="message bot">🤖 ${answer}</div>`);
     chat.scrollTop = chat.scrollHeight;
-  }, 350);
-
-  input.value = "";
+  }, 500);
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  setAIMode("ask");
+  const question = document.getElementById("question");
+  if (question) question.addEventListener("keydown", e => {
+    if (e.key === "Enter") askAI();
+  });
+});
 
 // ---------------- INFINITE ADAPTIVE QUIZ ENGINE ----------------
 let score = 0;
