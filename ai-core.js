@@ -1,5 +1,5 @@
 (() => {
-  const API_URL = window.BHASHABRIDGE_AI_ENDPOINT || "/api/chat";
+  const API_URL = window.BHASHABRIDGE_AI_ENDPOINT || localStorage.getItem("BHASHABRIDGE_AI_ENDPOINT") || "/api/chat";
   const state = { messages: [], busy:false, recognition:null };
 
   const el = id => document.getElementById(id);
@@ -50,8 +50,11 @@
       setStatus("AI connected",true);
     }catch(err){
       typing.remove();
-      add("system","AI backend is not connected yet. This interface intentionally does not generate fake or hardcoded answers. Connect a secure LLM endpoint at /api/chat to enable real conversational intelligence.");
-      setStatus("AI backend required",false);
+      const isMissing = err instanceof TypeError || /404|Failed to fetch|backend returned/i.test(String(err.message||err));
+      add("system", isMissing
+        ? "⚠️ Live AI service is not configured for this GitHub Pages deployment. The chat interface is working, but a real AI model cannot run directly inside static GitHub Pages."
+        : "⚠️ The AI service is temporarily unavailable. Please try again.");
+      setStatus("Live AI service unavailable",false);
       console.error(err);
     }finally{state.busy=false;el("aiSendBtn").disabled=false;}
   }
@@ -70,6 +73,6 @@
     el("clearChatBtn").onclick=newChat;
     el("aiVoiceBtn").onclick=voiceInput;
     el("aiPrompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
-    setStatus("AI backend required",false);
+    setStatus("Connecting to AI service…",false);
   });
 })();
