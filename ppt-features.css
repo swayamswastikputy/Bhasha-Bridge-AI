@@ -1,0 +1,13 @@
+/* Hackathon PPT alignment: architecture, learning loop and roadmap */
+.architecture-section{background:linear-gradient(180deg,#faf9ff,#f4f1ff)}
+.architecture-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.arch-card{background:#fff;border:1px solid #e4def8;border-radius:22px;padding:26px;min-height:220px;box-shadow:0 12px 32px rgba(67,44,130,.06)}
+.arch-card span{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:14px;background:#6848d7;color:#fff;font-weight:800}
+.arch-card h3{margin:18px 0 10px;color:#202b43}.arch-card p{line-height:1.65;color:#64708a}.arch-card small{color:#7658d8;font-weight:700}
+.learning-loop-section{background:#171421;color:#fff}.learning-loop-section h2{color:#fff}.learning-loop-section p{color:#c8c3d6}
+.loop-row{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:34px 0}
+.loop-row div{min-width:135px;padding:22px 14px;border-radius:18px;background:#242033;border:1px solid #3b3354;text-align:center;display:grid;gap:9px;font-size:25px}.loop-row b{font-size:14px;color:#fff}.loop-row i{color:#9f86ff;font-size:24px;font-style:normal}
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.pillars>div{background:#211d2e;border:1px solid #39314d;padding:22px;border-radius:18px}.pillars h3{margin:0 0 8px;color:#fff}
+.roadmap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.roadmap-grid article{border-radius:22px;padding:28px;background:#fff;border:1px solid #e8e2f8;position:relative}.roadmap-grid article span{font-size:12px;font-weight:800;letter-spacing:1px;color:#7454dc}.roadmap-grid article h3{font-size:25px;margin:12px 0}.roadmap-grid article p{color:#667085;line-height:1.7}
+@media(max-width:900px){.architecture-grid{grid-template-columns:repeat(2,1fr)}.pillars,.roadmap-grid{grid-template-columns:1fr}.loop-row i{transform:rotate(90deg)}}
+@media(max-width:560px){.architecture-grid{grid-template-columns:1fr}.arch-card{min-height:auto}.loop-row{align-items:stretch}.loop-row div{min-width:120px;flex:1}.section-title h2{font-size:30px}}
