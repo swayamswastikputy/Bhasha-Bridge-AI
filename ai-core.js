@@ -1,5 +1,5 @@
 (() => {
-  const API_URL = window.BHASHABRIDGE_AI_ENDPOINT || localStorage.getItem("BHASHABRIDGE_AI_ENDPOINT") || "";
+  const API_URL = window.BHASHA_BRIDGE_AI_ENDPOINT || localStorage.getItem("BHASHA_BRIDGE_AI_ENDPOINT") || "";
   const state = { messages: [], busy:false, recognition:null };
 
   const el = id => document.getElementById(id);
@@ -22,7 +22,7 @@
   function newChat(){
     state.messages=[];
     messagesEl().innerHTML="";
-    add("assistant","Hello! I’m Bhasha AI. Ask me about Mathematics, Science, English, Social Science, languages, definitions, formulas or step-by-step solutions. I can also use the connected AI service when available.");
+    add("assistant","Hello! I’m Bhasha Bridge AI. Ask me about Mathematics, Science, English, Social Science, languages, definitions, formulas or step-by-step solutions. I can also use the connected AI service when available.");
     el("aiPrompt").focus();
   }
 
@@ -61,7 +61,7 @@
     if(calc) return calc;
 
     if(/hello|hi|namaste/.test(q) && q.length<30)
-      return "Hello! 👋 I’m Bhasha AI. Tell me your class, subject or question. I can explain concepts in simple steps and give examples and practice questions.";
+      return "Hello! 👋 I’m Bhasha Bridge AI. Tell me your class, subject or question. I can explain concepts in simple steps and give examples and practice questions.";
 
     for(const [key,v] of Object.entries(lessons)){
       if(q.includes(key)){
@@ -85,7 +85,7 @@
     if(!API_URL) throw new Error("No backend configured");
     const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       messages:[
-        {role:"system",content:"You are Bhasha AI, a multilingual educational assistant for Jharkhand and CBSE students. Give accurate age-appropriate explanations. Structure answers with Definition, Explanation, Example, Key Points and Practice Question when useful. Do not invent syllabus facts."},
+        {role:"system",content:"You are Bhasha Bridge AI, a multilingual educational assistant for Jharkhand and CBSE students. Give accurate age-appropriate explanations. Structure answers with Definition, Explanation, Example, Key Points and Practice Question when useful. Do not invent syllabus facts."},
         ...state.messages,
         {role:"user",content:prompt}
       ]
