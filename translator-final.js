@@ -137,27 +137,30 @@ async function speakBrowser(text,code){
 function playAudioUrl(url){
  return new Promise((resolve,reject)=>{
    const a=new Audio();
-   audio?.pause?.(); audio=a;
-   a.preload='auto';a.volume=1;a.muted=false;a.playsInline=true;
-   a.src=url;
+   try{audio?.pause?.();}catch(_){}
+   audio=a;
+   a.preload='auto';
+   a.volume=1;
+   a.muted=false;
+   a.playsInline=true;
+   a.autoplay=false;
    let started=false,done=false;
    const finish=(err)=>{
-     if(done)return;done=true;clearTimeout(timer);
-     a.oncanplay=a.onplaying=a.onended=a.onerror=null;
+     if(done)return;
+     done=true;
+     clearTimeout(timer);
      err?reject(err):resolve();
    };
-   const timer=setTimeout(()=>finish(Error('Audio start timeout')),7000);
+   const timer=setTimeout(()=>finish(Error('Audio start timeout')),9000);
    a.onplaying=()=>{started=true;setStatus('🔊 Playing pronunciation…');};
    a.onended=()=>finish();
    a.onerror=()=>finish(Error('Remote audio failed'));
-   a.load();
-   const tryPlay=()=>{
-     const p=a.play();
-     if(p)p.catch(e=>finish(e));
-   };
-   a.oncanplay=tryPlay;
-   // Some browsers already have enough data before handler.
-   setTimeout(()=>{if(!started&&!done)tryPlay();},250);
+   a.src=url;
+
+   // IMPORTANT: call play() immediately from the user's button gesture.
+   // Waiting for oncanplay loses Chrome desktop's user-activation token.
+   const p=a.play();
+   if(p) p.catch(e=>finish(e));
  });
 }
 
@@ -207,7 +210,8 @@ window.speakResult=async()=>{
  }
  speaking=true;setStatus('🔊 Preparing voice…');
  try{
-   // Remote audio first: it does not depend on a Windows language voice being installed.
+   // Remote audio first. Audio.play() is initiated directly from the click path
+   // so Chrome desktop does not reject it after asynchronous loading.
    await speakRemote(text,code);
    setStatus('✓ Pronunciation completed.');
  }catch(remoteError){
