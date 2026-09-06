@@ -86,9 +86,18 @@ function speakRemote(text,code){
  const lang=LANG[code]?.translate;if(!lang)return Promise.reject(Error('No remote route'));
  return new Promise((resolve,reject)=>{
   const url='https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+encodeURIComponent(lang)+'&q='+encodeURIComponent(text.slice(0,180))+'&r='+Date.now();
-  audio?.pause();audio=new Audio(url);audio.crossOrigin='anonymous';
-  audio.onended=resolve;audio.onerror=()=>reject(Error('Remote audio failed'));
-  const p=audio.play();if(p)p.catch(reject);
+  audio?.pause();
+  audio=new Audio();
+  audio.preload='auto';
+  // Do not set crossOrigin: public TTS audio can fail on desktop when CORS is forced.
+  audio.src=url;
+  let started=false;
+  const watchdog=setTimeout(()=>{if(!started){audio.pause();reject(Error('Remote audio timeout'))}},5000);
+  audio.onplaying=()=>{started=true;clearTimeout(watchdog);setStatus('🔊 Playing pronunciation…')};
+  audio.onended=()=>{clearTimeout(watchdog);resolve()};
+  audio.onerror=()=>{clearTimeout(watchdog);reject(Error('Remote audio failed'))};
+  audio.load();
+  const p=audio.play();if(p)p.catch(e=>{clearTimeout(watchdog);reject(e)});
  });
 }
 window.speakResult=async()=>{
@@ -98,8 +107,21 @@ window.speakResult=async()=>{
  if(NATIVE.has(code)){setStatus('⚠ Native pronunciation model is not connected for this language yet.');toast('Dedicated native TTS backend required.');return}
  if(speaking){speechSynthesis?.cancel();audio?.pause();speaking=false;setStatus('Playback stopped.');return}
  speaking=true;setStatus('🔊 Preparing voice…');
- try{await speakBrowser(text,code);setStatus('✓ Pronunciation completed.')}
- catch(e){console.warn('Browser TTS failed',e);try{await speakRemote(text,code);setStatus('✓ Pronunciation completed.')}catch(e2){console.error(e2);setStatus('⚠ Voice playback failed. In Chrome/Edge, click the button again and ensure system audio is enabled.');toast('Voice could not be played.')}}
+ // Desktop-first strategy: use the audio URL as a reliable fallback, then browser TTS.
+ try{
+   await speakRemote(text,code);
+   setStatus('✓ Pronunciation completed.');
+ }catch(remoteError){
+   console.warn('Remote TTS failed, trying browser voice',remoteError);
+   try{
+     await speakBrowser(text,code);
+     setStatus('✓ Pronunciation completed.');
+   }catch(browserError){
+     console.error(browserError);
+     setStatus('⚠ Voice playback failed. Check laptop volume and try Chrome or Edge.');
+     toast('Voice could not be played.');
+   }
+ }
  finally{speaking=false}
 };
 document.addEventListener('DOMContentLoaded',()=>{
