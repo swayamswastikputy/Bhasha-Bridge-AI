@@ -108,7 +108,7 @@
       /history|geography|civics|democracy|constitution/.test(q) ? "Social Science" :
       /grammar|english|noun|verb|adjective/.test(q) ? "Language" : "General Studies";
 
-    return "I understand you are asking about: \""+question+"\"\n\n📚 Subject detected: "+subject+"\n\nI can give you a better syllabus-style answer if you include the class and topic, for example:\n• Class 8 Science – Explain photosynthesis\n• Class 10 Maths – Solve quadratic equations\n• Class 9 Civics – What is democracy?\n\nFor each topic, I will structure the answer as: Definition → Simple explanation → Example → Key points → Practice question.";
+    return "I don't have a reliable answer for that question in offline mode yet. Please ask a specific school or general-knowledge question, for example: What is gravity? What is the capital of India? Explain photosynthesis.";
   }
 
   async function tryBackend(prompt){
