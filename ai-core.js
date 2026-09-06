@@ -22,7 +22,7 @@
   function newChat(){
     state.messages=[];
     messagesEl().innerHTML="";
-    add("assistant","Hello! I’m Bhasha Bridge AI. Ask me about Mathematics, Science, English, Social Science, languages, definitions, formulas or step-by-step solutions. I can also use the connected AI service when available.");
+    add("assistant","Hello! I’m BHASHA AI. Ask me about Mathematics, Science, English, Social Science, languages, definitions, formulas or step-by-step solutions. I can also use the connected AI service when available.");
     el("aiPrompt").focus();
   }
 
@@ -61,7 +61,7 @@
     if(calc) return calc;
 
     if(/hello|hi|namaste/.test(q) && q.length<30)
-      return "Hello! 👋 I’m Bhasha Bridge AI. Tell me your class, subject or question. I can explain concepts in simple steps and give examples and practice questions.";
+      return "Hello! 👋 I’m BHASHA AI. Tell me your class, subject or question. I can explain concepts in simple steps and give examples and practice questions.";
 
     for(const [key,v] of Object.entries(lessons)){
       if(q.includes(key)){
@@ -73,6 +73,36 @@
       }
     }
 
+    const generalKnowledge = [
+      {keys:["capital of india","india capital"], answer:"The capital of India is New Delhi. It is the seat of the Government of India."},
+      {keys:["president of india"], answer:"For current office-holder questions, a live AI/backend connection should be used because this information can change. In general, the President is the constitutional head of the Republic of India."},
+      {keys:["national animal of india"], answer:"The national animal of India is the Bengal Tiger (Panthera tigris tigris)."},
+      {keys:["national bird of india"], answer:"The national bird of India is the Indian Peacock (Pavo cristatus)."},
+      {keys:["national flower of india"], answer:"The national flower of India is the Lotus (Nelumbo nucifera)."},
+      {keys:["national anthem of india"], answer:"India's national anthem is Jana Gana Mana, written by Rabindranath Tagore."},
+      {keys:["national song of india"], answer:"India's national song is Vande Mataram, written by Bankim Chandra Chattopadhyay."},
+      {keys:["father of nation","father of the nation"], answer:"Mahatma Gandhi is widely known as the Father of the Nation in India."},
+      {keys:["largest state in india"], answer:"Rajasthan is the largest Indian state by area."},
+      {keys:["smallest state in india"], answer:"Goa is the smallest Indian state by area."},
+      {keys:["longest river in india"], answer:"The Ganga is commonly taught as India's longest river."},
+      {keys:["highest mountain in india"], answer:"Kangchenjunga is the highest mountain peak located in India."},
+      {keys:["how many states in india","number of states in india"], answer:"India has 28 states and 8 Union Territories."},
+      {keys:["independence day"], answer:"India celebrates Independence Day on 15 August, marking independence in 1947."},
+      {keys:["republic day"], answer:"India celebrates Republic Day on 26 January, commemorating the Constitution coming into effect in 1950."},
+      {keys:["jharkhand capital"], answer:"The capital of Jharkhand is Ranchi."},
+      {keys:["jharkhand formation","jharkhand foundation day"], answer:"Jharkhand was formed on 15 November 2000. The date is also observed as Jharkhand Foundation Day."},
+      {keys:["first prime minister of india"], answer:"Jawaharlal Nehru was the first Prime Minister of independent India."},
+      {keys:["largest planet"], answer:"Jupiter is the largest planet in our Solar System."},
+      {keys:["smallest planet"], answer:"Mercury is the smallest planet in our Solar System."},
+      {keys:["red planet"], answer:"Mars is known as the Red Planet because iron oxide gives its surface a reddish appearance."},
+      {keys:["sun is a"], answer:"The Sun is a star. It is the central star of our Solar System."},
+      {keys:["water formula","formula of water"], answer:"The chemical formula of water is H₂O: two hydrogen atoms and one oxygen atom."},
+      {keys:["who invented telephone","invented telephone"], answer:"Alexander Graham Bell is commonly credited with inventing and patenting the first practical telephone."},
+      {keys:["largest ocean"], answer:"The Pacific Ocean is the largest ocean on Earth."}
+    ];
+    const gk = generalKnowledge.find(item => item.keys.some(key => q.includes(key)));
+    if(gk) return "🌍 General Knowledge\n\n"+gk.answer+"\n\n💡 Want to learn more? Ask me for the definition, history, importance or a quiz on this topic.";
+    
     const subject = /math|equation|geometry|number|fraction|algebra/.test(q) ? "Mathematics" :
       /science|plant|physics|chemistry|biology|cell|energy/.test(q) ? "Science" :
       /history|geography|civics|democracy|constitution/.test(q) ? "Social Science" :
@@ -85,7 +115,7 @@
     if(!API_URL) throw new Error("No backend configured");
     const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       messages:[
-        {role:"system",content:"You are Bhasha Bridge AI, a multilingual educational assistant for Jharkhand and CBSE students. Give accurate age-appropriate explanations. Structure answers with Definition, Explanation, Example, Key Points and Practice Question when useful. Do not invent syllabus facts."},
+        {role:"system",content:"You are BHASHA AI, a multilingual educational assistant for Jharkhand and CBSE students. Give accurate age-appropriate explanations. Structure answers with Definition, Explanation, Example, Key Points and Practice Question when useful. Do not invent syllabus facts."},
         ...state.messages,
         {role:"user",content:prompt}
       ]
