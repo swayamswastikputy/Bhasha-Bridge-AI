@@ -11,3 +11,7 @@
 .roadmap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.roadmap-grid article{border-radius:22px;padding:28px;background:#fff;border:1px solid #e8e2f8;position:relative}.roadmap-grid article span{font-size:12px;font-weight:800;letter-spacing:1px;color:#7454dc}.roadmap-grid article h3{font-size:25px;margin:12px 0}.roadmap-grid article p{color:#667085;line-height:1.7}
 @media(max-width:900px){.architecture-grid{grid-template-columns:repeat(2,1fr)}.pillars,.roadmap-grid{grid-template-columns:1fr}.loop-row i{transform:rotate(90deg)}}
 @media(max-width:560px){.architecture-grid{grid-template-columns:1fr}.arch-card{min-height:auto}.loop-row{align-items:stretch}.loop-row div{min-width:120px;flex:1}.section-title h2{font-size:30px}}
+/* Main prototype heading: visually use the requested BHASHA AI name while preserving the existing logo and layout. */
+header .brand{font-size:0;white-space:nowrap}
+header .brand::after{content:"BHASHA AI";font-size:20px;font-weight:800;line-height:1;color:#17203b;display:inline-block}
+@media(max-width:560px){header .brand::after{font-size:18px}}
