@@ -1,122 +1,200 @@
-/* FINAL DESKTOP + MOBILE RELIABILITY LAYER — loaded last */
+/* FINAL LIVE TRANSLATION + LAPTOP MICROPHONE RELIABILITY LAYER — loaded last */
 (() => {
   "use strict";
+
   const $ = id => document.getElementById(id);
-  const nativeUnsupported = new Set(["sat","unr","hoc","kru","kha","nag","kfy","kho","ppg"]);
-  const lang = {en:"en-US",hi:"hi-IN",bn:"bn-IN",or:"or-IN",ur:"ur-IN",ta:"ta-IN",te:"te-IN",mr:"mr-IN"};
-  const cache = new Map();
 
-  function status(msg){ const e=$("translationStatus"); if(e) e.textContent=msg; }
-  function toast(msg){ if(typeof window.showToast==="function") window.showToast(msg); else console.log(msg); }
-  async function request(url, ms=12000){
-    const c=new AbortController(), timer=setTimeout(()=>c.abort(),ms);
-    try { return await fetch(url,{signal:c.signal,cache:"no-store"}); }
-    finally { clearTimeout(timer); }
-  }
-  async function primary(text,src,tgt){
-    const url="https://translate.googleapis.com/translate_a/single?client=gtx&sl="+encodeURIComponent(src)+"&tl="+encodeURIComponent(tgt)+"&dt=t&q="+encodeURIComponent(text);
-    const r=await request(url); if(!r.ok) throw new Error("primary "+r.status);
-    const d=await r.json(); const x=Array.isArray(d?.[0])?d[0].map(p=>p?.[0]||"").join("").trim():"";
-    if(!x) throw new Error("empty"); return x;
-  }
-  async function backup(text,src,tgt){
-    const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair="+encodeURIComponent(src+"|"+tgt);
-    const r=await request(url); if(!r.ok) throw new Error("backup "+r.status);
-    const d=await r.json(), raw=d?.responseData?.translatedText;
-    if(!raw) throw new Error("empty backup");
-    const x=document.createElement("textarea"); x.innerHTML=raw; return x.value.trim();
+  const locales = {
+    en:"en-US", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ur:"ur-IN",
+    sat:"sat-IN", unr:"unr-IN", hoc:"hoc-IN", kru:"kru-IN", kha:"kha-IN",
+    nag:"nag-IN", kfy:"kfy-IN", kho:"kho-IN", ppg:"ppg-IN",
+    ta:"ta-IN", te:"te-IN", mr:"mr-IN"
+  };
+
+  function toast(msg) {
+    if (typeof window.showToast === "function") window.showToast(msg);
+    else console.log(msg);
   }
 
-  window.translateLesson=async()=>{
-    const input=$("inputText"), source=$("sourceLanguage"), target=$("targetLanguage"), out=$("translationResult");
-    if(!input||!source||!target||!out){ console.error("Translator elements missing"); return; }
-    const text=input.value.replace(/\s+/g," ").trim(), src=source.value, tgt=target.value;
-    if(!text){toast("Enter text first.");return;}
-    if(src===tgt){window.lastTranslation=text;out.textContent=text;status("✓ Same-language mode.");return;}
-    if(nativeUnsupported.has(src)||nativeUnsupported.has(tgt)){
-      out.textContent="This language pair requires a dedicated native-language translation model.";
-      status("⚠ Verified native-language backend required — no fake translation generated.");
+  function micStatus(msg) {
+    const el = $("micStatus");
+    if (el) el.textContent = msg;
+  }
+
+  function explainMicError(code) {
+    const messages = {
+      "not-allowed":"Microphone access is blocked. Click the 🔒 icon beside the website address, allow Microphone, then reload the page.",
+      "service-not-allowed":"The speech-recognition service is unavailable. Use Chrome or Edge and make sure you are online.",
+      "audio-capture":"No working microphone was found. Check your laptop microphone and Windows microphone input settings.",
+      "network":"Speech recognition needs an internet connection in many desktop browsers.",
+      "language-not-supported":"This browser does not support the selected recognition language. Try English or Hindi first.",
+      "aborted":"Listening stopped. Press Start Listening again.",
+      "no-speech":"No speech was detected. Speak clearly near the microphone and try again."
+    };
+    return messages[code] || ("Microphone error: " + code + ". Please try again.");
+  }
+
+  async function requestMicrophonePermission() {
+    if (!navigator.mediaDevices?.getUserMedia) return true;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      stream.getTracks().forEach(t => t.stop());
+      return true;
+    } catch (e) {
+      console.error("getUserMedia:", e);
+      const code = e.name === "NotAllowedError" ? "not-allowed" : "audio-capture";
+      toast(explainMicError(code));
+      micStatus("● MICROPHONE BLOCKED");
+      return false;
+    }
+  }
+
+  function startLaptopListening() {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      toast("Live voice recognition is not supported by this browser. Please use the latest Google Chrome or Microsoft Edge.");
+      micStatus("● VOICE RECOGNITION NOT SUPPORTED");
       return;
     }
-    const key=src+"|"+tgt+"|"+text;
-    if(cache.has(key)){window.lastTranslation=cache.get(key);out.textContent=window.lastTranslation;status("⚡ Translation loaded instantly.");return;}
-    out.textContent="Translating…"; status("🧠 Translating with advanced language service…");
-    try{
-      let result;
-      try{ result=await primary(text,src,tgt); status("✓ Translation completed."); }
-      catch(e){ console.warn("Primary failed",e); status("Trying backup translation service…"); result=await backup(text,src,tgt); status("✓ Translation completed using backup service."); }
-      cache.set(key,result); window.lastTranslation=result; out.textContent=result; toast("Translation completed!");
-    }catch(e){
-      console.error(e); out.textContent="Translation service is unavailable right now. Please retry.";
-      window.lastTranslation=""; status(e.name==="AbortError"?"⚠ Request timed out. Please retry.":"⚠ Translation service unavailable.");
+
+    const source = $("sourceLanguage");
+    const input = $("inputText");
+    const startBtn = $("startBtn");
+    if (!source || !input || !startBtn) return;
+
+    try { window.recognition?.abort?.(); } catch (_) {}
+
+    const recognition = new Recognition();
+    window.recognition = recognition;
+
+    recognition.lang = locales[source.value] || "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    let finalParts = [];
+    let lastInterim = "";
+    let stoppedByUser = false;
+    let restarting = false;
+
+    recognition.onstart = () => {
+      window.listening = true;
+      document.body.classList.add("listening");
+      startBtn.textContent = "⏹ Stop Listening";
+      micStatus("● LISTENING LIVE");
+      toast("Microphone is listening — speak now.");
+    };
+
+    recognition.onresult = event => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const text = result[0]?.transcript?.trim() || "";
+        if (result.isFinal && text) finalParts[i] = text;
+        if (!result.isFinal && text) interim += text + " ";
+      }
+
+      lastInterim = interim.trim();
+
+      // Remove accidental immediate duplicate words/phrases.
+      const clean = ([...finalParts.filter(Boolean), lastInterim].join(" "))
+        .replace(/\s+/g," ")
+        .trim()
+        .replace(/\b(\w+)(?:\s+\1\b)+/gi,"$1");
+
+      input.value = clean;
+      micStatus("● LISTENING LIVE");
+    };
+
+    recognition.onerror = event => {
+      console.warn("SpeechRecognition error:", event.error);
+
+      // `no-speech` and `aborted` do not mean microphone permission failed.
+      if (event.error === "no-speech") {
+        micStatus("● LISTENING — NO SPEECH DETECTED");
+        return;
+      }
+      if (event.error === "aborted") return;
+
+      toast(explainMicError(event.error));
+      micStatus("● " + event.error.toUpperCase());
+
+      if (["not-allowed","service-not-allowed","audio-capture"].includes(event.error)) {
+        window.listening = false;
+      }
+    };
+
+    recognition.onend = () => {
+      if (stoppedByUser || !window.listening) {
+        document.body.classList.remove("listening");
+        startBtn.textContent = "🎤 Start Listening";
+        micStatus("● READY");
+        return;
+      }
+
+      // Desktop speech services often end after a pause. Restart the same
+      // session only after a short delay, preventing the old duplicate loop.
+      if (restarting) return;
+      restarting = true;
+
+      setTimeout(() => {
+        restarting = false;
+        if (!stoppedByUser && window.listening) {
+          try { recognition.start(); }
+          catch (_) { /* browser may already be restarting */ }
+        }
+      }, 250);
+    };
+
+    window.stopDesktopRecognition = () => {
+      stoppedByUser = true;
+      window.listening = false;
+      try { recognition.stop(); } catch (_) { try { recognition.abort(); } catch (_) {} }
+      document.body.classList.remove("listening");
+      startBtn.textContent = "🎤 Start Listening";
+      micStatus("● READY");
+    };
+
+    requestMicrophonePermission().then(ok => {
+      if (!ok) {
+        window.listening = false;
+        return;
+      }
+
+      try {
+        recognition.start();
+      } catch (e) {
+        console.warn("recognition.start:", e);
+        toast("Could not start the microphone. Allow microphone permission and try again.");
+        window.listening = false;
+      }
+    });
+  }
+
+  window.toggleListening = async () => {
+    if (window.listening) {
+      window.stopDesktopRecognition?.();
+      return;
     }
+    startLaptopListening();
   };
 
-  function bestVoice(code){
-    const voices=window.speechSynthesis?.getVoices?.()||[];
-    const wanted=(lang[code]||"en-US").toLowerCase(), base=wanted.split("-")[0];
-    return voices.find(v=>v.lang.toLowerCase()===wanted) ||
-           voices.find(v=>v.lang.toLowerCase().startsWith(base+"-")) ||
-           voices.find(v=>v.lang.toLowerCase().startsWith(base)) ||
-           voices.find(v=>v.default) || voices[0] || null;
-  }
-  window.speakResult=()=>{
-    const out=$("translationResult"), target=$("targetLanguage");
-    const text=(window.lastTranslation||out?.textContent||"").trim(), code=target?.value||"en";
-    if(!text||/appear here|unavailable|required/i.test(text)){toast("Translate valid text first.");return;}
-    if(!("speechSynthesis" in window)){status("⚠ Speech playback is not supported by this browser.");return;}
-    const run=()=>{
-      const u=new SpeechSynthesisUtterance(text), v=bestVoice(code);
-      u.lang=v?.lang||lang[code]||"en-US"; if(v)u.voice=v; u.rate=.9;
-      u.onstart=()=>status("🔊 Playing pronunciation…");
-      u.onend=()=>status("✓ Pronunciation completed.");
-      u.onerror=()=>status("⚠ Pronunciation failed. Try Chrome or Edge.");
-      speechSynthesis.cancel(); speechSynthesis.speak(u);
-    };
-    if(speechSynthesis.getVoices().length) run();
-    else { speechSynthesis.getVoices(); setTimeout(run,500); }
-  };
-  if("speechSynthesis" in window) speechSynthesis.getVoices();
+  // Re-apply the selected source language when it changes.
+  document.addEventListener("DOMContentLoaded", () => {
+    const source = $("sourceLanguage");
+    if (source) {
+      source.addEventListener("change", () => {
+        if (window.listening) {
+          window.stopDesktopRecognition?.();
+          setTimeout(startLaptopListening, 150);
+        }
+      });
+    }
 
-  /* Desktop-safe microphone start: explicit permission/error feedback */
-  const oldStart=window.startVoice;
-  window.startVoice=function(){
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){toast("Live speech recognition is not supported in this desktop browser. Use Chrome or Edge.");return;}
-    return oldStart?.();
-  };
-
-  /* Ensure AI send button always has a working direct-answer fallback */
-  function simpleAnswer(q){
-    const t=q.toLowerCase().replace(/[?!.]/g," ").replace(/\s+/g," ").trim();
-    const facts=[
-      [/^hi$|^hello$|^hey$/, "Hello! 👋 I am BHASHA AI. Ask me any school or general knowledge question."],
-      [/what is your name|your name/, "My name is BHASHA AI. I am your multilingual learning assistant."],
-      [/capital of india/, "The capital of India is New Delhi."],
-      [/capital of jharkhand/, "The capital of Jharkhand is Ranchi."],
-      [/prime minister of india/, "The Prime Minister of India is Narendra Modi."],
-      [/red planet/, "Mars is known as the Red Planet."],
-      [/largest planet/, "Jupiter is the largest planet in our Solar System."],
-      [/formula of water|water formula/, "The chemical formula of water is H₂O."],
-      [/photosynthesis/, "Photosynthesis is the process by which green plants use sunlight, carbon dioxide and water to make food, releasing oxygen."]
-    ];
-    for(const [r,a] of facts) if(r.test(t)) return a;
-    const m=t.match(/^(?:what is |calculate |solve )?(\d+(?:\.\d+)?)\s*([+\-*x×/])\s*(\d+(?:\.\d+)?)/);
-    if(m){const a=+m[1],b=+m[3],o=m[2],v=o==="+"?a+b:o==="-"?a-b:(o==="*"||o==="x"||o==="×")?a*b:b===0?null:a/b;return v===null?"Division by zero is undefined.":"Answer: "+v;}
-    return "I understand your question: “"+q+"”. Please ask it directly and I will explain it simply with a definition, example and key points.";
-  }
-  document.addEventListener("DOMContentLoaded",()=>{
-    document.querySelectorAll(".brand, .ai-sidebar h3, .ai-chat-head b").forEach(n=>{if(/bhasha/i.test(n.textContent)) n.textContent="BHASHA AI";});
-    const prompt=$("aiPrompt"), btn=$("aiSendBtn"), box=$("aiMessages"), st=$("aiConnectionText");
-    if(!prompt||!btn||!box)return;
-    const send=()=>{
-      const q=prompt.value.trim(); if(!q)return;
-      const user=document.createElement("div"); user.className="ai-msg user"; user.textContent=q; box.appendChild(user);
-      prompt.value="";
-      const ai=document.createElement("div"); ai.className="ai-msg assistant"; ai.textContent=simpleAnswer(q); box.appendChild(ai);
-      box.scrollTop=box.scrollHeight; if(st)st.textContent="BHASHA AI ready";
-    };
-    btn.onclick=send;
-    prompt.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
+    const secure = location.protocol === "https:" || location.hostname === "localhost";
+    if (!secure) {
+      micStatus("● HTTPS REQUIRED FOR MICROPHONE");
+    }
   });
 })();
