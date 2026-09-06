@@ -120,3 +120,199 @@
 
   document.addEventListener('DOMContentLoaded',()=>{init();fixVideo();});
 })();
+
+
+/* ---------------- ADVANCED TRANSLATION + VOICE RELIABILITY LAYER ---------------- */
+(function(){
+  const translationCodes = {
+    en:"en", hi:"hi", bn:"bn", or:"or", ur:"ur", ta:"ta", te:"te", mr:"mr",
+    sat:"sat", unr:"unr", hoc:"hoc", kru:"kru", kha:"kha", nag:"nag",
+    kfy:"kfy", kho:"kho", ppg:"ppg"
+  };
+
+  const speechLocales = {
+    en:"en-IN", hi:"hi-IN", bn:"bn-IN", or:"or-IN", ur:"ur-IN",
+    ta:"ta-IN", te:"te-IN", mr:"mr-IN",
+    sat:"hi-IN", unr:"hi-IN", hoc:"hi-IN", kru:"hi-IN", kha:"hi-IN",
+    nag:"hi-IN", kfy:"hi-IN", kho:"hi-IN", ppg:"hi-IN"
+  };
+
+  const providerSupported = new Set(["en","hi","bn","or","ur","ta","te","mr"]);
+  const cache = new Map();
+
+  function setTranslationStatus(message){
+    const el=document.getElementById("translationStatus");
+    if(el) el.textContent=message;
+  }
+
+  function normalizeText(text){
+    return String(text||"").replace(/\s+/g," ").trim();
+  }
+
+  async function fetchWithTimeout(url, options={}, timeout=10000){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeout);
+    try{
+      return await fetch(url,{...options,signal:controller.signal});
+    }finally{ clearTimeout(timer); }
+  }
+
+  async function googleTranslate(text, source, target){
+    const url="https://translate.googleapis.com/translate_a/single?client=gtx"+
+      "&sl="+encodeURIComponent(source)+"&tl="+encodeURIComponent(target)+
+      "&dt=t&q="+encodeURIComponent(text);
+    const res=await fetchWithTimeout(url,{},10000);
+    if(!res.ok) throw new Error("Google translation unavailable");
+    const data=await res.json();
+    const output=Array.isArray(data?.[0]) ? data[0].map(x=>x?.[0]||"").join("").trim() : "";
+    if(!output) throw new Error("Empty translation");
+    return output;
+  }
+
+  async function myMemoryTranslate(text, source, target){
+    const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+
+      "&langpair="+encodeURIComponent(source+"|"+target);
+    const res=await fetchWithTimeout(url,{},10000);
+    if(!res.ok) throw new Error("Backup translation unavailable");
+    const data=await res.json();
+    const raw=data?.responseData?.translatedText;
+    if(!raw) throw new Error("Empty backup translation");
+    const decoder=document.createElement("textarea");
+    decoder.innerHTML=raw;
+    return decoder.value.trim();
+  }
+
+  window.translateLesson=async function(){
+    const input=document.getElementById("inputText");
+    const srcSelect=document.getElementById("sourceLanguage");
+    const tgtSelect=document.getElementById("targetLanguage");
+    const out=document.getElementById("translationResult");
+    if(!input||!srcSelect||!tgtSelect||!out) return;
+
+    const text=normalizeText(input.value);
+    const src=srcSelect.value;
+    const tgt=tgtSelect.value;
+
+    if(!text){ showToast("Enter or speak text first."); return; }
+    if(src===tgt){
+      window.lastTranslation=text;
+      out.textContent=text;
+      setTranslationStatus("✓ Same-language text — no translation needed.");
+      return;
+    }
+
+    const source=translationCodes[src]||src;
+    const target=translationCodes[tgt]||tgt;
+    const key=source+"|"+target+"|"+text;
+
+    if(cache.has(key)){
+      window.lastTranslation=cache.get(key);
+      out.textContent=window.lastTranslation;
+      setTranslationStatus("⚡ Instant result from local translation cache.");
+      showToast("Translation ready.");
+      return;
+    }
+
+    out.textContent="Translating…";
+    setTranslationStatus("🧠 Analyzing sentence context and translating…");
+
+    // Avoid pretending unsupported native-language pairs have been translated.
+    if(!providerSupported.has(source)||!providerSupported.has(target)){
+      out.textContent="This language pair needs a dedicated translation model.";
+      setTranslationStatus("⚠ Native-language translation backend is required for this pair. No fake translation was generated.");
+      showToast("Dedicated model required for this language pair.");
+      return;
+    }
+
+    try{
+      let translated;
+      try{
+        translated=await googleTranslate(text,source,target);
+        setTranslationStatus("✓ Advanced translation completed.");
+      }catch(primaryError){
+        console.warn("Primary translator failed",primaryError);
+        setTranslationStatus("Primary service unavailable — trying backup translator…");
+        translated=await myMemoryTranslate(text,source,target);
+        setTranslationStatus("✓ Translation completed using backup service.");
+      }
+
+      window.lastTranslation=translated;
+      cache.set(key,translated);
+      out.textContent=translated;
+      showToast("Translation completed!");
+    }catch(error){
+      console.error("Translation error",error);
+      out.textContent="Translation could not be completed right now. Please check your internet and try again.";
+      window.lastTranslation="";
+      setTranslationStatus("⚠ Translation service unavailable. Please retry.");
+      showToast("Translation failed — please retry.");
+    }
+  };
+
+  function getAvailableVoices(){
+    return window.speechSynthesis ? speechSynthesis.getVoices() : [];
+  }
+
+  function findBestVoice(code){
+    const voices=getAvailableVoices();
+    if(!voices.length) return null;
+    const locale=(speechLocales[code]||code||"en").toLowerCase();
+    const base=locale.split("-")[0];
+    return voices.find(v=>v.lang.toLowerCase()===locale) ||
+      voices.find(v=>v.lang.toLowerCase().startsWith(base+"-")) ||
+      voices.find(v=>v.lang.toLowerCase().startsWith(base)) ||
+      voices.find(v=>v.default) || voices[0];
+  }
+
+  function speakNow(text, code){
+    if(!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)){
+      setTranslationStatus("Audio playback is not supported by this browser.");
+      showToast("Please use a modern browser for pronunciation.");
+      return;
+    }
+
+    const utterance=new SpeechSynthesisUtterance(text);
+    const voice=findBestVoice(code);
+    utterance.lang=voice?.lang || speechLocales[code] || "en-US";
+    if(voice) utterance.voice=voice;
+    utterance.rate=0.88;
+    utterance.pitch=1;
+    utterance.volume=1;
+
+    utterance.onstart=()=>setTranslationStatus(voice
+      ? "🔊 Playing pronunciation with the best available voice."
+      : "🔊 Playing with your device's default speech voice.");
+    utterance.onerror=(e)=>{
+      console.warn("Speech synthesis error",e.error);
+      setTranslationStatus("⚠ Audio could not start. Try Chrome, reload once, and press the button again.");
+    };
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+  }
+
+  window.speakResult=function(){
+    const result=document.getElementById("translationResult");
+    const target=document.getElementById("targetLanguage");
+    const text=normalizeText(window.lastTranslation || result?.innerText);
+    if(!text || /appear here|could not be completed|needs a dedicated/i.test(text)){
+      showToast("Translate valid text first.");
+      return;
+    }
+
+    const code=target?.value||"en";
+    // Voice lists often load asynchronously on Android. Retry once instead of
+    // showing the incorrect “native browser voice not installed” message.
+    if(getAvailableVoices().length===0){
+      speechSynthesis.getVoices();
+      setTimeout(()=>speakNow(text,code),350);
+    }else{
+      speakNow(text,code);
+    }
+  };
+
+  if("speechSynthesis" in window){
+    speechSynthesis.onvoiceschanged=()=>{ speechSynthesis.getVoices(); };
+    speechSynthesis.getVoices();
+  }
+})();
