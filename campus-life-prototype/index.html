@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="description" content="CampusOne - unified digital campus operations prototype for students and administrators." />
+  <title>CampusOne | Unified Campus Assistant</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="offline-bar" id="offlineBar">Offline mode · Cached campus data is available</div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">C</div>
+        <div><strong>CampusOne</strong><span>Fretbox-style campus hub</span></div>
+      </div>
+      <div class="role-card">
+        <span class="eyebrow">DEMO ROLE</span>
+        <div class="role-row"><span id="roleLabel">Student</span><button class="tiny-btn" id="roleToggle">Switch</button></div>
+      </div>
+      <nav id="mainNav" aria-label="Main navigation">
+        <button class="nav-item active" data-page="home">⌂ <span>Dashboard</span></button>
+        <button class="nav-item" data-page="attendance">◷ <span>Attendance</span></button>
+        <button class="nav-item" data-page="timetable">▦ <span>Timetable</span></button>
+        <button class="nav-item" data-page="requests">✓ <span>Requests & Passes</span></button>
+        <button class="nav-item" data-page="certificates">▤ <span>Certificates</span></button>
+        <button class="nav-item" data-page="hostel">⌂ <span>Hostel & Complaints</span></button>
+        <button class="nav-item" data-page="mess">◉ <span>Mess Services</span></button>
+        <button class="nav-item" data-page="notices">! <span>Notices</span></button>
+        <button class="nav-item" data-page="fees">₹ <span>Fees & Queries</span></button>
+        <button class="nav-item admin-only" data-page="admin">▥ <span>Admin Console</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button class="nav-item" id="languageBtn">文 <span>Language</span><b>EN</b></button>
+        <button class="nav-item" id="offlineBtn">⇩ <span>Offline pack</span></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu">☰</button>
+        <div class="search"><span>⌕</span><input id="globalSearch" placeholder="Search notices, services, requests..." /></div>
+        <div class="top-actions">
+          <button class="icon-btn" id="notifBtn" aria-label="Notifications">♢<i></i></button>
+          <button class="profile" id="profileBtn"><span class="avatar">AS</span><span><strong id="profileName">Aarav Sharma</strong><small>Student · CSE</small></span><b>⌄</b></button>
+        </div>
+      </header>
+
+      <div class="content" id="content"></div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="modal-backdrop" id="modalBackdrop">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" id="modalClose">×</button>
+      <h2 id="modalTitle">Create request</h2>
+      <div id="modalBody"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
